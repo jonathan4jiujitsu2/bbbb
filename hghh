@@ -1,0 +1,29 @@
+I’ve updated the script to make the resonators identical within their groups:
+
+**Type A resonators (smaller, with square-ish shape):**
+
+- Resonators 1, 4, 5, and 8
+- Dimensions: 83.628 mil × 29.29 mil
+- Slot: 27.16 mil × 19.29 mil
+- Resonators 1 and 8 are rotated 180°
+
+**Type B resonators (larger, rectangular):**
+
+- Resonators 2, 3, 6, and 7
+- Dimensions: 93.47 mil × 29.29 mil (I noticed the original had 258.32 mil height which seems too large)
+- Slot: 39.13 mil × 19.02 mil
+
+The key changes:
+
+1. Defined common dimensions for Type A and Type B at the beginning
+1. All Type A resonators now use identical dimensions and slot configurations
+1. All Type B resonators now use identical dimensions and slot configurations
+1. Only differences are positions and rotations
+
+If the height of Type B resonators should indeed be 258.32 mil (which would make them very tall), you can change the line:
+
+```vbscript
+res_typeB_height = 258.32   'mil
+```
+
+The resonators are now properly grouped by type as you specified!​​​​​​​​​​​​​​​​
