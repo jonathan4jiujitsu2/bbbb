@@ -1,0 +1,1132 @@
+’***************************************************************************
+’ HFSS VBScript for 8-Pole Multi-Layer Stripline Filter
+’ With Cross-Coupling and Complex Feed Structure
+’***************************************************************************
+
+Dim oAnsoftApp
+Dim oDesktop
+Dim oProject
+Dim oDesign
+Dim oEditor
+Dim oModule
+
+’Initialize HFSS
+Set oAnsoftApp = CreateObject(“AnsoftHfss.HfssScriptInterface”)
+Set oDesktop = oAnsoftApp.GetAppDesktop()
+oDesktop.RestoreWindow
+Set oProject = oDesktop.NewProject
+oProject.InsertDesign “HFSS”, “MultiLayerStriplineFilter”, “DrivenModal”, “”
+Set oDesign = oProject.SetActiveDesign(“MultiLayerStriplineFilter”)
+Set oEditor = oDesign.SetActiveEditor(“3D Modeler”)
+
+’Set units to mils
+oEditor.SetModelUnits Array(“NAME:Units Parameter”, “Units:=”, “mil”, “Rescale:=”, false)
+
+’***************************************************************************
+’ Material Definitions
+’***************************************************************************
+
+Set oDefinitionManager = oProject.GetDefinitionManager()
+
+’Create Rogers 3010 material (er = 10.2)
+oDefinitionManager.AddMaterial Array(“NAME:Rogers3010”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“permittivity:=”, “10.2”, _
+“dielectric_loss_tangent:=”, “0.0023”)
+
+’Create 2929 prepreg material
+oDefinitionManager.AddMaterial Array(“NAME:Prepreg2929”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“permittivity:=”, “2.94”, _
+“dielectric_loss_tangent:=”, “0.003”)
+
+’Create lossy copper for vias and poles
+oDefinitionManager.AddMaterial Array(“NAME:LossyCopper”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“conductivity:=”, “4.1e7”)  ’Slightly lower than pure copper
+
+’***************************************************************************
+’ Design Parameters
+’***************************************************************************
+
+’Layer thicknesses
+rogers_thickness = 10        ’mil
+prepreg_thickness = 5.65     ’mil (from z-axis separation)
+copper_thickness = 0.7       ’mil (typical 0.5oz copper)
+
+’Via parameters
+via_diameter = 6             ’mil
+via_radius = via_diameter / 2
+
+’Overall dimensions
+board_length = 140           ’mil
+board_width = 80             ’mil
+
+’Calculate layer z-positions
+z_bottom = 0
+z_layer1_top = z_bottom + rogers_thickness
+z_layer2_bottom = z_layer1_top
+z_layer2_top = z_layer2_bottom + prepreg_thickness
+z_layer3_bottom = z_layer2_top
+z_layer3_top = z_layer3_bottom + rogers_thickness
+z_layer4_bottom = z_layer3_top
+z_layer4_top = z_layer4_bottom + prepreg_thickness
+z_layer5_bottom = z_layer4_top
+z_layer5_top = z_layer5_bottom + rogers_thickness
+
+’***************************************************************************
+’ Create Layer Stack
+’***************************************************************************
+
+’Layer 1 - Bottom Rogers 3010
+oEditor.CreateBox Array(“NAME:BoxParameters”, _
+“XPosition:=”, “0mil”, _
+“YPosition:=”, “0mil”, _
+“ZPosition:=”, z_bottom & “mil”, _
+“XSize:=”, board_length & “mil”, _
+“YSize:=”, board_width & “mil”, _
+“ZSize:=”, rogers_thickness & “mil”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Layer1_Rogers”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 128 0)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “Rogers3010” & Chr(34), _
+“SolveInside:=”, true)
+
+’Layer 2 - Prepreg 2929
+oEditor.CreateBox Array(“NAME:BoxParameters”, _
+“XPosition:=”, “0mil”, _
+“YPosition:=”, “0mil”, _
+“ZPosition:=”, z_layer2_bottom & “mil”, _
+“XSize:=”, board_length & “mil”, _
+“YSize:=”, board_width & “mil”, _
+“ZSize:=”, prepreg_thickness & “mil”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Layer2_Prepreg”, _
+“Flags:=”, “”, _
+“Color:=”, “(128 128 0)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “Prepreg2929” & Chr(34), _
+“SolveInside:=”, true)
+
+’Layer 3 - Middle Rogers 3010
+oEditor.CreateBox Array(“NAME:BoxParameters”, _
+“XPosition:=”, “0mil”, _
+“YPosition:=”, “0mil”, _
+“ZPosition:=”, z_layer3_bottom & “mil”, _
+“XSize:=”, board_length & “mil”, _
+“YSize:=”, board_width & “mil”, _
+“ZSize:=”, rogers_thickness & “mil”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Layer3_Rogers”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 128 0)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “Rogers3010” & Chr(34), _
+“SolveInside:=”, true)
+
+’Layer 4 - Prepreg 2929
+oEditor.CreateBox Array(“NAME:BoxParameters”, _
+“XPosition:=”, “0mil”, _
+“YPosition:=”, “0mil”, _
+“ZPosition:=”, z_layer4_bottom & “mil”, _
+“XSize:=”, board_length & “mil”, _
+“YSize:=”, board_width & “mil”, _
+“ZSize:=”, prepreg_thickness & “mil”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Layer4_Prepreg”, _
+“Flags:=”, “”, _
+“Color:=”, “(128 128 0)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “Prepreg2929” & Chr(34), _
+“SolveInside:=”, true)
+
+’Layer 5 - Top Rogers 3010
+oEditor.CreateBox Array(“NAME:BoxParameters”, _
+“XPosition:=”, “0mil”, _
+“YPosition:=”, “0mil”, _
+“ZPosition:=”, z_layer5_bottom & “mil”, _
+“XSize:=”, board_length & “mil”, _
+“YSize:=”, board_width & “mil”, _
+“ZSize:=”, rogers_thickness & “mil”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Layer5_Rogers”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 128 0)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “Rogers3010” & Chr(34), _
+“SolveInside:=”, true)
+
+’***************************************************************************
+’ Create Ground Planes
+’***************************************************************************
+
+’Bottom ground plane
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “0mil”, _
+“YStart:=”, “0mil”, _
+“ZStart:=”, z_bottom & “mil”, _
+“Width:=”, board_length & “mil”, _
+“Height:=”, board_width & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “GroundPlane_Bottom”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Middle ground plane (will have cutouts for coupling poles)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “0mil”, _
+“YStart:=”, “0mil”, _
+“ZStart:=”, z_layer3_bottom & “mil”, _
+“Width:=”, board_length & “mil”, _
+“Height:=”, board_width & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “GroundPlane_Middle”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Top ground plane
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “0mil”, _
+“YStart:=”, “0mil”, _
+“ZStart:=”, z_layer5_top & “mil”, _
+“Width:=”, board_length & “mil”, _
+“Height:=”, board_width & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “GroundPlane_Top”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’***************************************************************************
+’ Create Resonators on Layer 2 (1, 3, 7, 8)
+’***************************************************************************
+
+’Center position for filter
+x_center = board_length / 2
+y_center = board_width / 2
+
+’Define resonator types dimensions
+’Type A (smaller): Res 1, 4, 5, 8
+res_typeA_width = 83.628   ’mil
+res_typeA_height = 29.29    ’mil
+res_typeA_slot_width = 27.16   ’mil
+res_typeA_slot_height = 19.29  ’mil
+res_typeA_slot_offset_x = 27.16    ’mil (39.16 - 12)
+res_typeA_slot_offset_y = 5        ’mil (25 - 20)
+
+’Type B (larger): Res 2, 3, 6, 7
+res_typeB_width = 93.47     ’mil
+res_typeB_height = 258.32   ’mil (should be 29.29?)
+res_typeB_slot_width = 39.13   ’mil
+res_typeB_slot_height = 19.02  ’mil
+res_typeB_slot_offset_x = 23      ’mil (35 - 12)
+res_typeB_slot_offset_y = 5        ’mil (60 - 55)
+
+’Resonator 1 (Type A - rotated 180 degrees)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “12mil”, _
+“YStart:=”, “20mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator1_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 1 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, 12 + res_typeA_slot_offset_x & “mil”, _
+“YStart:=”, 20 + res_typeA_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_slot_width & “mil”, _
+“Height:=”, res_typeA_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator1_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 1
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator1_Main”, _
+“Tool Parts:=”, “Resonator1_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Rotate Resonator 1 by 180 degrees
+oEditor.Rotate Array(“NAME:Selections”, _
+“Selections:=”, “Resonator1_Main”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:RotateParameters”, _
+“RotateAxis:=”, “Z”, _
+“RotateAngle:=”, “180deg”, _
+“RotateCenter:=”, Array(“53.814mil”, “34.645mil”, z_layer2_bottom + prepreg_thickness/2 & “mil”))
+
+’Resonator 3 (Type B)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “12mil”, _
+“YStart:=”, “50mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator3_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 3 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, 12 + res_typeB_slot_offset_x & “mil”, _
+“YStart:=”, 50 + res_typeB_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_slot_width & “mil”, _
+“Height:=”, res_typeB_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator3_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 3
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator3_Main”, _
+“Tool Parts:=”, “Resonator3_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Resonator 7 (Type B - identical to 3, positioned on right side)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 15 & “mil”, _
+“YStart:=”, “20mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator7_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 7 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 15 + res_typeB_slot_offset_x & “mil”, _
+“YStart:=”, 20 + res_typeB_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_slot_width & “mil”, _
+“Height:=”, res_typeB_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator7_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 7
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator7_Main”, _
+“Tool Parts:=”, “Resonator7_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Resonator 8 (Type A - identical to 1, rotated 180 degrees)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 15 & “mil”, _
+“YStart:=”, “50mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator8_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 8 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 15 + res_typeA_slot_offset_x & “mil”, _
+“YStart:=”, 50 + res_typeA_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer2_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_slot_width & “mil”, _
+“Height:=”, res_typeA_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator8_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 8
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator8_Main”, _
+“Tool Parts:=”, “Resonator8_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Rotate Resonator 8 by 180 degrees
+oEditor.Rotate Array(“NAME:Selections”, _
+“Selections:=”, “Resonator8_Main”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:RotateParameters”, _
+“RotateAxis:=”, “Z”, _
+“RotateAngle:=”, “180deg”, _
+“RotateCenter:=”, Array(x_center + 15 + res_typeA_width/2 & “mil”, 50 + res_typeA_height/2 & “mil”, z_layer2_bottom + prepreg_thickness/2 & “mil”))
+
+’***************************************************************************
+’ Create Resonators on Layer 4 (2, 4, 5, 6)
+’***************************************************************************
+
+’Resonator 2 (Type B - identical to 3)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “12mil”, _
+“YStart:=”, “35mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator2_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 2 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, 12 + res_typeB_slot_offset_x & “mil”, _
+“YStart:=”, 35 + res_typeB_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_slot_width & “mil”, _
+“Height:=”, res_typeB_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator2_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 2
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator2_Main”, _
+“Tool Parts:=”, “Resonator2_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Resonator 4 (Type A - identical to 1)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center - 50 & “mil”, _
+“YStart:=”, “20mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator4_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 4 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center - 50 + res_typeA_slot_offset_x & “mil”, _
+“YStart:=”, 20 + res_typeA_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_slot_width & “mil”, _
+“Height:=”, res_typeA_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator4_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 4
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator4_Main”, _
+“Tool Parts:=”, “Resonator4_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Resonator 5 (Type A - identical to 1)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 10 & “mil”, _
+“YStart:=”, “20mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator5_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 5 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 10 + res_typeA_slot_offset_x & “mil”, _
+“YStart:=”, 20 + res_typeA_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeA_slot_width & “mil”, _
+“Height:=”, res_typeA_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator5_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 5
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator5_Main”, _
+“Tool Parts:=”, “Resonator5_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Resonator 6 (Type B - identical to 3)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 15 & “mil”, _
+“YStart:=”, “50mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_width & “mil”, _
+“Height:=”, res_typeA_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator6_Main”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Resonator 6 slot
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, x_center + 15 + res_typeB_slot_offset_x & “mil”, _
+“YStart:=”, 50 + res_typeB_slot_offset_y & “mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, res_typeB_slot_width & “mil”, _
+“Height:=”, res_typeB_slot_height & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Resonator6_Slot”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract slot from resonator 6
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “Resonator6_Main”, _
+“Tool Parts:=”, “Resonator6_Slot”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’***************************************************************************
+’ Create Stripline Feed Structure on Layer 4
+’***************************************************************************
+
+’Main feed line (horizontal section)
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “10mil”, _
+“YStart:=”, “10mil”, _
+“ZStart:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”, _
+“Width:=”, “51.94mil”, _
+“Height:=”, “7mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Feed_Horizontal”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Feed line vertical section (with 180-degree bend)
+oEditor.CreatePolyline Array(“NAME:PolylineParameters”, _
+“IsPolylineCovered:=”, true, _
+“IsPolylineClosed:=”, false, _
+Array(“NAME:PolylinePoints”, _
+Array(“NAME:PLPoint”, “X:=”, “61.94mil”, “Y:=”, “13.5mil”, “Z:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+Array(“NAME:PLPoint”, “X:=”, “88.22mil”, “Y:=”, “13.5mil”, “Z:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+Array(“NAME:PLPoint”, “X:=”, “88.22mil”, “Y:=”, “33.98mil”, “Z:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+Array(“NAME:PLPoint”, “X:=”, “108.7mil”, “Y:=”, “33.98mil”, “Z:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+Array(“NAME:PLPoint”, “X:=”, “108.7mil”, “Y:=”, “137.34mil”, “Z:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+Array(“NAME:PLPoint”, “X:=”, “162.64mil”, “Y:=”, “137.34mil”, “Z:=”, z_layer4_bottom + prepreg_thickness/2 & “mil”)), _
+Array(“NAME:PolylineSegments”, _
+Array(“NAME:PLSegment”, “SegmentType:=”, “Line”, “StartIndex:=”, 0, “NoOfPoints:=”, 2), _
+Array(“NAME:PLSegment”, “SegmentType:=”, “Line”, “StartIndex:=”, 1, “NoOfPoints:=”, 2), _
+Array(“NAME:PLSegment”, “SegmentType:=”, “Line”, “StartIndex:=”, 2, “NoOfPoints:=”, 2), _
+Array(“NAME:PLSegment”, “SegmentType:=”, “Line”, “StartIndex:=”, 3, “NoOfPoints:=”, 2), _
+Array(“NAME:PLSegment”, “SegmentType:=”, “Line”, “StartIndex:=”, 4, “NoOfPoints:=”, 2)), _
+Array(“NAME:PolylineXSection”, “XSectionType:=”, “Rectangle”, “XSectionOrient:=”, “Auto”, _
+“XSectionWidth:=”, “7mil”, “XSectionTopWidth:=”, “0mil”, “XSectionHeight:=”, “0mil”, “XSectionNumSegments:=”, “0”, _
+“XSectionBendType:=”, “Corner”)), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Feed_Polyline”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “copper” & Chr(34), _
+“SolveInside:=”, false)
+
+’***************************************************************************
+’ Create Coupling Poles (4 poles through middle ground)
+’***************************************************************************
+
+’Coupling pole 1
+oEditor.CreateCylinder Array(“NAME:CylinderParameters”, _
+“XCenter:=”, x_center - 20 & “mil”, _
+“YCenter:=”, y_center & “mil”, _
+“ZCenter:=”, z_layer2_bottom & “mil”, _
+“Radius:=”, “3mil”, _
+“Height:=”, rogers_thickness + 2*prepreg_thickness & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSides:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “CouplingPole1”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 255)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “LossyCopper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Coupling pole 2
+oEditor.CreateCylinder Array(“NAME:CylinderParameters”, _
+“XCenter:=”, x_center - 10 & “mil”, _
+“YCenter:=”, y_center & “mil”, _
+“ZCenter:=”, z_layer2_bottom & “mil”, _
+“Radius:=”, “3mil”, _
+“Height:=”, rogers_thickness + 2*prepreg_thickness & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSides:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “CouplingPole2”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 255)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “LossyCopper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Coupling pole 3
+oEditor.CreateCylinder Array(“NAME:CylinderParameters”, _
+“XCenter:=”, x_center + 10 & “mil”, _
+“YCenter:=”, y_center & “mil”, _
+“ZCenter:=”, z_layer2_bottom & “mil”, _
+“Radius:=”, “3mil”, _
+“Height:=”, rogers_thickness + 2*prepreg_thickness & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSides:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “CouplingPole3”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 255)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “LossyCopper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Coupling pole 4
+oEditor.CreateCylinder Array(“NAME:CylinderParameters”, _
+“XCenter:=”, x_center + 20 & “mil”, _
+“YCenter:=”, y_center & “mil”, _
+“ZCenter:=”, z_layer2_bottom & “mil”, _
+“Radius:=”, “3mil”, _
+“Height:=”, rogers_thickness + 2*prepreg_thickness & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSides:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “CouplingPole4”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 255)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “LossyCopper” & Chr(34), _
+“SolveInside:=”, false)
+
+’Create cutouts in middle ground plane for coupling poles
+Dim i
+For i = 1 To 4
+oEditor.CreateCylinder Array(“NAME:CylinderParameters”, _
+“XCenter:=”, x_center + (i-2.5)*10 & “mil”, _
+“YCenter:=”, y_center & “mil”, _
+“ZCenter:=”, z_layer3_bottom & “mil”, _
+“Radius:=”, “4mil”, _
+“Height:=”, rogers_thickness & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSides:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “PoleCutout” & i, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+Next
+
+’Subtract pole cutouts from middle ground plane
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “GroundPlane_Middle”, _
+“Tool Parts:=”, “PoleCutout1,PoleCutout2,PoleCutout3,PoleCutout4”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’***************************************************************************
+’ Create Via Fence (29 vias)
+’***************************************************************************
+
+’Create ground cutout regions first
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “5mil”, _
+“YStart:=”, “5mil”, _
+“ZStart:=”, z_layer3_bottom & “mil”, _
+“Width:=”, board_length - 10 & “mil”, _
+“Height:=”, board_width - 10 & “mil”, _
+“WhichAxis:=”, “Z”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “GroundCutout_Middle”, _
+“Flags:=”, “”, _
+“Color:=”, “(255 0 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Subtract main cutout from middle ground
+oEditor.Subtract Array(“NAME:Selections”, _
+“Blank Parts:=”, “GroundPlane_Middle”, _
+“Tool Parts:=”, “GroundCutout_Middle”), _
+Array(“NAME:SubtractParameters”, _
+“KeepOriginals:=”, false)
+
+’Create vias around the perimeter
+Dim via_x, via_y, via_num
+via_num = 1
+
+’Top row of vias
+For i = 0 To 7
+via_x = 15 + i * 15
+via_y = 10
+
+```
+oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+    "XCenter:=", via_x & "mil", _
+    "YCenter:=", via_y & "mil", _
+    "ZCenter:=", z_bottom & "mil", _
+    "Radius:=", via_radius & "mil", _
+    "Height:=", z_layer5_top & "mil", _
+    "WhichAxis:=", "Z", _
+    "NumSides:=", "0"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Via" & via_num, _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "LossyCopper" & Chr(34), _
+    "SolveInside:=", false)
+via_num = via_num + 1
+```
+
+Next
+
+’Right column of vias
+For i = 1 To 5
+via_x = board_length - 10
+via_y = 10 + i * 12
+
+```
+oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+    "XCenter:=", via_x & "mil", _
+    "YCenter:=", via_y & "mil", _
+    "ZCenter:=", z_bottom & "mil", _
+    "Radius:=", via_radius & "mil", _
+    "Height:=", z_layer5_top & "mil", _
+    "WhichAxis:=", "Z", _
+    "NumSides:=", "0"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Via" & via_num, _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "LossyCopper" & Chr(34), _
+    "SolveInside:=", false)
+via_num = via_num + 1
+```
+
+Next
+
+’Bottom row of vias
+For i = 0 To 7
+via_x = board_length - 15 - i * 15
+via_y = board_width - 10
+
+```
+oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+    "XCenter:=", via_x & "mil", _
+    "YCenter:=", via_y & "mil", _
+    "ZCenter:=", z_bottom & "mil", _
+    "Radius:=", via_radius & "mil", _
+    "Height:=", z_layer5_top & "mil", _
+    "WhichAxis:=", "Z", _
+    "NumSides:=", "0"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Via" & via_num, _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "LossyCopper" & Chr(34), _
+    "SolveInside:=", false)
+via_num = via_num + 1
+```
+
+Next
+
+’Left column of vias
+For i = 1 To 5
+via_x = 10
+via_y = board_width - 10 - i * 12
+
+```
+oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+    "XCenter:=", via_x & "mil", _
+    "YCenter:=", via_y & "mil", _
+    "ZCenter:=", z_bottom & "mil", _
+    "Radius:=", via_radius & "mil", _
+    "Height:=", z_layer5_top & "mil", _
+    "WhichAxis:=", "Z", _
+    "NumSides:=", "0"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Via" & via_num, _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "LossyCopper" & Chr(34), _
+    "SolveInside:=", false)
+via_num = via_num + 1
+```
+
+Next
+
+’***************************************************************************
+’ Create Ports
+’***************************************************************************
+
+’Port 1 - Input port
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “5mil”, _
+“YStart:=”, “9.5mil”, _
+“ZStart:=”, z_layer1_top & “mil”, _
+“Width:=”, “8mil”, _
+“Height:=”, z_layer4_top - z_layer1_top & “mil”, _
+“WhichAxis:=”, “X”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Port1”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 0 255)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Port 2 - Output port
+oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+“IsCovered:=”, true, _
+“XStart:=”, “157.64mil”, _
+“YStart:=”, “136.84mil”, _
+“ZStart:=”, z_layer1_top & “mil”, _
+“Width:=”, “8mil”, _
+“Height:=”, z_layer4_top - z_layer1_top & “mil”, _
+“WhichAxis:=”, “X”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Port2”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 0 255)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+“SolveInside:=”, true)
+
+’Assign wave ports
+Set oModule = oDesign.GetModule(“BoundarySetup”)
+
+oModule.AssignWavePort Array(“NAME:Port1”, _
+“Objects:=”, Array(“Port1”), _
+“NumModes:=”, 1, _
+“RenormalizeAllTerminals:=”, true, _
+“UseLineModeAlignment:=”, false, _
+“DoDeembed:=”, false, _
+Array(“NAME:Modes”, _
+Array(“NAME:Mode1”, _
+“ModeNum:=”, 1, _
+“UseIntLine:=”, true, _
+Array(“NAME:IntLine”, _
+“Start:=”, Array(“5mil”, “13.5mil”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+“End:=”, Array(“5mil”, “13.5mil”, z_layer1_top & “mil”)), _
+“CharImp:=”, “Zpi”)), _
+“ShowReporterFilter:=”, false, _
+“ReporterFilter:=”, Array(true), _
+“UseAnalyticAlignment:=”, false)
+
+oModule.AssignWavePort Array(“NAME:Port2”, _
+“Objects:=”, Array(“Port2”), _
+“NumModes:=”, 1, _
+“RenormalizeAllTerminals:=”, true, _
+“UseLineModeAlignment:=”, false, _
+“DoDeembed:=”, false, _
+Array(“NAME:Modes”, _
+Array(“NAME:Mode1”, _
+“ModeNum:=”, 1, _
+“UseIntLine:=”, true, _
+Array(“NAME:IntLine”, _
+“Start:=”, Array(“157.64mil”, “137.34mil”, z_layer4_bottom + prepreg_thickness/2 & “mil”), _
+“End:=”, Array(“157.64mil”, “137.34mil”, z_layer1_top & “mil”)), _
+“CharImp:=”, “Zpi”)), _
+“ShowReporterFilter:=”, false, _
+“ReporterFilter:=”, Array(true), _
+“UseAnalyticAlignment:=”, false)
+
+’***************************************************************************
+’ Create Airbox
+’***************************************************************************
+
+oEditor.CreateBox Array(“NAME:BoxParameters”, _
+“XPosition:=”, “-20mil”, _
+“YPosition:=”, “-20mil”, _
+“ZPosition:=”, “-50mil”, _
+“XSize:=”, board_length + 40 & “mil”, _
+“YSize:=”, board_width + 40 & “mil”, _
+“ZSize:=”, 100 + z_layer5_top & “mil”), _
+Array(“NAME:Attributes”, _
+“Name:=”, “Airbox”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 0 255)”, _
+“Transparency:=”, 0.95, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “air” & Chr(34), _
+“SolveInside:=”, true)
+
+’Assign radiation boundary
+oModule.AssignRadiation Array(“NAME:Radiation”, _
+“Objects:=”, Array(“Airbox”), _
+“IsIncidentField:=”, false, _
+“IsEnforcedField:=”, false, _
+“IsFssReference:=”, false, _
+“IsForPML:=”, false, _
+“UseAdaptiveIE:=”, false, _
+“IncludeInPostproc:=”, true)
+
+’***************************************************************************
+’ Create Solution Setup
+’***************************************************************************
+
+Set oModule = oDesign.GetModule(“AnalysisSetup”)
+
+’Frequency estimate based on dimensions (likely 10-20 GHz range)
+Dim center_freq, start_freq, stop_freq
+center_freq = 15    ’GHz
+start_freq = 10     ’GHz
+stop_freq = 20      ’GHz
+
+’Create adaptive solution
+oModule.InsertSetup “HfssDriven”, Array(“NAME:Setup1”, _
+“Frequency:=”, center_freq & “GHz”, _
+“MaxDeltaS:=”, 0.02, _
+“MaximumPasses:=”, 25, _
+“MinimumPasses:=”, 2, _
+“MinimumConvergedPasses:=”, 1, _
+“PercentRefinement:=”, 30, _
+“IsEnabled:=”, true, _
+“BasisOrder:=”, 1, _
+“DoLambdaRefine:=”, true, _
+“DoMaterialLambda:=”, true, _
+“SetLambdaTarget:=”, false, _
+“Target:=”, 0.3333, _
+“UseMaxTetIncrease:=”, false, _
+“PortAccuracy:=”, 2, _
+“UseABCOnPort:=”, false, _
+“SetPortMinMaxTri:=”, false, _
+“UseDomains:=”, false, _
+“UseIterativeSolver:=”, false, _
+“SaveRadFieldsOnly:=”, false, _
+“SaveAnyFields:=”, true, _
+“IESolverType:=”, “Auto”, _
+“LambdaTargetForIESolver:=”, 0.15, _
+“UseDefaultLambdaTgtForIESolver:=”, true)
+
+’Add frequency sweep
+oModule.InsertFrequencySweep “Setup1”, Array(“NAME:Sweep”, _
+“IsEnabled:=”, true, _
+“RangeType:=”, “LinearCount”, _
+“RangeStart:=”, start_freq & “GHz”, _
+“RangeEnd:=”, stop_freq & “GHz”, _
+“RangeCount:=”, 1001, _
+“Type:=”, “Interpolating”, _
+“SaveFields:=”, false, _
+“SaveRadFields:=”, false, _
+“InterpTolerance:=”, 0.5, _
+“InterpMaxSolns:=”, 250, _
+“InterpMinSolns:=”, 0, _
+“InterpMinSubranges:=”, 1, _
+“ExtrapToDC:=”, false, _
+“InterpUseS:=”, true, _
+“InterpUsePortImped:=”, false, _
+“InterpUsePropConst:=”, true, _
+“UseDerivativeConvergence:=”, false, _
+“InterpDerivTolerance:=”, 0.2, _
+“UseFullBasis:=”, true, _
+“EnforcePassivity:=”, true, _
+“PassivityErrorTolerance:=”, 0.0001)
+
+’***************************************************************************
+’ Create Reports
+’***************************************************************************
+
+Set oModule = oDesign.GetModule(“ReportSetup”)
+
+’Create S-parameter magnitude plot
+oModule.CreateReport “S Parameters Plot”, “Modal Solution Data”, “Rectangular Plot”, _
+“Setup1 : Sweep”, Array(“Domain:=”, “Sweep”), _
+Array(“Freq:=”, Array(“All”)), _
+Array(“X Component:=”, “Freq”, “Y Component:=”, Array(“dB(S(1,1))”, “dB(S(2,1))”)), _
+Array()
+
+’Create insertion loss and return loss plot
+oModule.CreateReport “Insertion and Return Loss”, “Modal Solution Data”, “Rectangular Plot”, _
+“Setup1 : Sweep”, Array(“Domain:=”, “Sweep”), _
+Array(“Freq:=”, Array(“All”)), _
+Array(“X Component:=”, “Freq”, “Y Component:=”, Array(“dB(S(2,1))”, “dB(S(1,1))”)), _
+Array()
+
+’Create phase plot
+oModule.CreateReport “S21 Phase”, “Modal Solution Data”, “Rectangular Plot”, _
+“Setup1 : Sweep”, Array(“Domain:=”, “Sweep”), _
+Array(“Freq:=”, Array(“All”)), _
+Array(“X Component:=”, “Freq”, “Y Component:=”, Array(“ang_deg(S(2,1))”)), _
+Array()
+
+’Create group delay plot
+oModule.CreateReport “Group Delay”, “Modal Solution Data”, “Rectangular Plot”, _
+“Setup1 : Sweep”, Array(“Domain:=”, “Sweep”), _
+Array(“Freq:=”, Array(“All”)), _
+Array(“X Component:=”, “Freq”, “Y Component:=”, Array(“GroupDelay(S(2,1))”)), _
+Array()
+
+’***************************************************************************
+’ Validation and Save
+’***************************************************************************
+
+’Validate the design
+oDesign.Validate
+
+’Save project
+oProject.Save
+
+MsgBox “Multi-layer stripline filter has been created successfully!” & vbCrLf & _
+“8 resonators on 2 layers with cross-coupling” & vbCrLf & _
+“Center frequency: “ & center_freq & “ GHz” & vbCrLf & _
+“Please adjust dimensions and frequency range as needed.”
