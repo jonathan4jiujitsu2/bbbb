@@ -1,0 +1,769 @@
+'***************************************************************************
+' HFSS VBScript for High Frequency Coupled Line Filter
+' Based on provided design parameters
+'***************************************************************************
+
+Dim oAnsoftApp
+Dim oDesktop
+Dim oProject
+Dim oDesign
+Dim oEditor
+Dim oModule
+
+'Initialize HFSS
+Set oAnsoftApp = CreateObject("AnsoftHfss.HfssScriptInterface")
+Set oDesktop = oAnsoftApp.GetAppDesktop()
+oDesktop.RestoreWindow
+Set oProject = oDesktop.NewProject
+oProject.InsertDesign "HFSS", "CoupledLineFilter", "DrivenModal", ""
+Set oDesign = oProject.SetActiveDesign("CoupledLineFilter")
+Set oEditor = oDesign.SetActiveEditor("3D Modeler")
+
+'Set units to micrometers (um)
+oEditor.SetModelUnits Array("NAME:Units Parameter", "Units:=", "um", "Rescale:=", false)
+
+'***************************************************************************
+' Design Variables from your parameters
+'***************************************************************************
+
+'# Design Variables
+Res_total_length = 8.178e3      '8178um = 8.178mm
+Res_trace_width = 690           '690um
+Res_trace_thickness = 0.65e3    '0.65mil = 16.51um (1mil = 25.4um)
+Res1_gap_pct = 0.14
+Res1_gap_orientation = 1
+aspect_ratio = 1
+Sgap19 = 340                    '340um
+Res1_width = Res_total_length/2 * (1+aspect_ratio) - Res1_gap_pct * aspect_ratio
+Res1_length = Res1_width * aspect_ratio
+Sgap19_value = 500              '500um
+Res2_gap_pct = 0.14
+Res2_dx = 0                     '0um
+Sgap23 = 0                      '0um
+Sgap45 = -100                   '-100um
+res_z_offset = 1.6e3            '1.6mil = 40.64um
+Sgap_10 = 200                   '200um
+trace_width_io = 786.5          '786.5um
+stub_length_io = 1430           '1430um
+trace_width_io1 = 100           '100um
+trace_length_io = 2000          '2000um
+Res_keepout = 650               '650um
+trace_50ohm_length = 2e3        '2mm = 2000um
+core_thickness = 1e3            '1mil = 25.4um
+prepreg_thickness_nom = 1.6e3   '1.6mil = 40.64um
+prepreg_thickness = prepreg_thickness_nom + Res_trace_thickness
+port_h = 2 * core_thickness + prepreg_thickness + Res_trace_thickness
+trace_50ohm_width = 700         '700um (adjusted from 7mil)
+Res2_width = Res_total_length/2 * (1+aspect_ratio) - Res2_gap_pct * aspect_ratio
+core2_thickness = 5e3           '5mil = 127um
+Res2_dy = (Sgap19 + Sgap23)/2 + (Res1_width + Res2_width)
+trace_io_chamfer = 0.4
+taper_length = 200              '200um
+trace_length = 1539.249339e3    '1539.249339um
+via_diameter = 6e3              '6mil = 152.4um
+via_spacing = 30e3              '30mil = 762um
+
+'Substrate Parameters
+substrate_er = 3.66             'Typical for high frequency substrates
+substrate_loss_tangent = 0.004  'Low loss
+conductor_conductivity = 5.8e7  'S/m (copper)
+
+'Calculate derived dimensions
+substrate_height = prepreg_thickness '40.64um
+board_length = 20000            '20mm total length
+board_width = 10000             '10mm total width
+
+'***************************************************************************
+' Create Materials
+'***************************************************************************
+
+Set oDefinitionManager = oProject.GetDefinitionManager()
+
+'Create substrate material
+oDefinitionManager.AddMaterial Array("NAME:HighFreqSubstrate", _
+    "CoordinateSystemType:=", "Cartesian", _
+    Array("NAME:AttachedData"), _
+    "permittivity:=", CStr(substrate_er), _
+    "dielectric_loss_tangent:=", CStr(substrate_loss_tangent))
+
+'***************************************************************************
+' Create Layer Stack
+'***************************************************************************
+
+'Bottom ground plane
+oEditor.CreateBox Array("NAME:BoxParameters", _
+    "XPosition:=", "0um", _
+    "YPosition:=", "0um", _
+    "ZPosition:=", -core_thickness - substrate_height & "um", _
+    "XSize:=", board_length & "um", _
+    "YSize:=", board_width & "um", _
+    "ZSize:=", core_thickness & "um"), _
+    Array("NAME:Attributes", _
+    "Name:=", "GroundPlane_Bottom", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'Substrate layer
+oEditor.CreateBox Array("NAME:BoxParameters", _
+    "XPosition:=", "0um", _
+    "YPosition:=", "0um", _
+    "ZPosition:=", -substrate_height & "um", _
+    "XSize:=", board_length & "um", _
+    "YSize:=", board_width & "um", _
+    "ZSize:=", substrate_height & "um"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Substrate", _
+    "Flags:=", "", _
+    "Color:=", "(0 128 0)", _
+    "Transparency:=", 0.6, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "HighFreqSubstrate" & Chr(34), _
+    "SolveInside:=", true)
+
+'Top ground plane (will have cutouts)
+oEditor.CreateBox Array("NAME:BoxParameters", _
+    "XPosition:=", "0um", _
+    "YPosition:=", "0um", _
+    "ZPosition:=", "0um", _
+    "XSize:=", board_length & "um", _
+    "YSize:=", board_width & "um", _
+    "ZSize:=", Res_trace_thickness & "um"), _
+    Array("NAME:Attributes", _
+    "Name:=", "GroundPlane_Top", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'***************************************************************************
+' Create Resonators
+'***************************************************************************
+
+Dim x_center, y_center
+x_center = board_length / 2
+y_center = board_width / 2
+
+'Calculate positions
+Dim res1_x, res1_y, res2_x, res2_y
+
+'Resonator 1 (left side)
+res1_x = x_center - Res1_width/2 - Sgap19_value/2
+res1_y = y_center - Res1_length/2
+
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", res1_x & "um", _
+    "YStart:=", res1_y & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", Res1_width & "um", _
+    "Height:=", Res1_length & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Resonator1", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'Resonator 2 (right side)
+res2_x = x_center + Sgap19_value/2
+res2_y = y_center - Res2_width/2 + Res2_dy
+
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", res2_x & "um", _
+    "YStart:=", res2_y & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", Res2_width & "um", _
+    "Height:=", Res1_length & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Resonator2", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'***************************************************************************
+' Create Input/Output Structures
+'***************************************************************************
+
+'Input stub and trace
+Dim input_x, input_y
+input_x = res1_x - trace_length_io - stub_length_io
+input_y = res1_y + Res1_length/2 - trace_width_io/2
+
+'Input stub
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", res1_x - stub_length_io & "um", _
+    "YStart:=", input_y & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", stub_length_io & "um", _
+    "Height:=", trace_width_io & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "InputStub", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'Input trace
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", input_x & "um", _
+    "YStart:=", input_y + trace_width_io/2 - trace_width_io1/2 & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", trace_length_io & "um", _
+    "Height:=", trace_width_io1 & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "InputTrace", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'50 ohm trace section with taper
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", input_x - trace_50ohm_length - taper_length & "um", _
+    "YStart:=", input_y + trace_width_io/2 - trace_50ohm_width/2 & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", trace_50ohm_length & "um", _
+    "Height:=", trace_50ohm_width & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Input50ohm", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'Create taper
+Dim taper_points(11)
+taper_points(0) = input_x - taper_length & "um"
+taper_points(1) = input_y + trace_width_io/2 - trace_width_io1/2 & "um"
+taper_points(2) = res_z_offset & "um"
+taper_points(3) = input_x - taper_length & "um"
+taper_points(4) = input_y + trace_width_io/2 + trace_width_io1/2 & "um"
+taper_points(5) = res_z_offset & "um"
+taper_points(6) = input_x & "um"
+taper_points(7) = input_y + trace_width_io/2 + trace_width_io1/2 & "um"
+taper_points(8) = res_z_offset & "um"
+taper_points(9) = input_x & "um"
+taper_points(10) = input_y + trace_width_io/2 - trace_width_io1/2 & "um"
+taper_points(11) = res_z_offset & "um"
+
+oEditor.CreatePolyline Array("NAME:PolylineParameters", _
+    "IsPolylineCovered:=", true, _
+    "IsPolylineClosed:=", true, _
+    Array("NAME:PolylinePoints", _
+        Array("NAME:PLPoint", "X:=", taper_points(0), "Y:=", taper_points(1), "Z:=", taper_points(2)), _
+        Array("NAME:PLPoint", "X:=", taper_points(3), "Y:=", taper_points(4), "Z:=", taper_points(5)), _
+        Array("NAME:PLPoint", "X:=", taper_points(6), "Y:=", taper_points(7), "Z:=", taper_points(8)), _
+        Array("NAME:PLPoint", "X:=", taper_points(9), "Y:=", taper_points(10), "Z:=", taper_points(11))), _
+    Array("NAME:PolylineSegments", _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 0, "NoOfPoints:=", 2), _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 1, "NoOfPoints:=", 2), _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 2, "NoOfPoints:=", 2), _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 3, "NoOfPoints:=", 2)), _
+    Array("NAME:PolylineXSection", "XSectionType:=", "None", "XSectionOrient:=", "Auto", _
+        "XSectionWidth:=", "0", "XSectionTopWidth:=", "0", "XSectionHeight:=", "0", "XSectionNumSegments:=", "0", _
+        "XSectionBendType:=", "Corner")), _
+    Array("NAME:Attributes", _
+        "Name:=", "InputTaper", _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+        "SolveInside:=", false)
+
+'Mirror output structures (simplified - you would need to add similar structures for output)
+'Output stub
+Dim output_x, output_y
+output_x = res2_x + Res2_width
+output_y = res2_y + Res1_length/2 - trace_width_io/2
+
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", output_x & "um", _
+    "YStart:=", output_y & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", stub_length_io & "um", _
+    "Height:=", trace_width_io & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "OutputStub", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'Output trace
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", output_x + stub_length_io & "um", _
+    "YStart:=", output_y + trace_width_io/2 - trace_width_io1/2 & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", trace_length_io & "um", _
+    "Height:=", trace_width_io1 & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "OutputTrace", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'50 ohm output trace section
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", output_x + stub_length_io + trace_length_io + taper_length & "um", _
+    "YStart:=", output_y + trace_width_io/2 - trace_50ohm_width/2 & "um", _
+    "ZStart:=", res_z_offset & "um", _
+    "Width:=", trace_50ohm_length & "um", _
+    "Height:=", trace_50ohm_width & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Output50ohm", _
+    "Flags:=", "", _
+    "Color:=", "(255 128 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+    "SolveInside:=", false)
+
+'***************************************************************************
+' Create Ground Plane Cutout
+'***************************************************************************
+
+'Create cutout for resonators and traces
+Dim cutout_x, cutout_y, cutout_width, cutout_height
+cutout_x = res1_x - stub_length_io - trace_length_io - taper_length - trace_50ohm_length - Res_keepout
+cutout_y = y_center - Res1_length/2 - Res_keepout
+cutout_width = (output_x + stub_length_io + trace_length_io + taper_length + trace_50ohm_length) - cutout_x + 2*Res_keepout
+cutout_height = Res1_length + 2*Res_keepout
+
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", cutout_x & "um", _
+    "YStart:=", cutout_y & "um", _
+    "ZStart:=", "0um", _
+    "Width:=", cutout_width & "um", _
+    "Height:=", cutout_height & "um", _
+    "WhichAxis:=", "Z"), _
+    Array("NAME:Attributes", _
+    "Name:=", "GroundCutout", _
+    "Flags:=", "", _
+    "Color:=", "(255 0 0)", _
+    "Transparency:=", 0, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "vacuum" & Chr(34), _
+    "SolveInside:=", true)
+
+'Subtract cutout from ground plane
+oEditor.Subtract Array("NAME:Selections", _
+    "Blank Parts:=", "GroundPlane_Top", _
+    "Tool Parts:=", "GroundCutout"), _
+    Array("NAME:SubtractParameters", _
+    "KeepOriginals:=", false)
+
+'***************************************************************************
+' Create Vias (simplified - showing pattern)
+'***************************************************************************
+
+'Create via array around the filter
+Dim via_x, via_y, i, j
+Dim num_vias_x, num_vias_y
+
+num_vias_x = Int((cutout_width + 2*via_spacing) / via_spacing)
+num_vias_y = Int((cutout_height + 2*via_spacing) / via_spacing)
+
+'Top row of vias
+For i = 0 To num_vias_x
+    via_x = cutout_x - via_spacing + i * via_spacing
+    via_y = cutout_y - via_spacing
+    
+    oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+        "XCenter:=", via_x & "um", _
+        "YCenter:=", via_y & "um", _
+        "ZCenter:=", -substrate_height & "um", _
+        "Radius:=", via_diameter/2 & "um", _
+        "Height:=", substrate_height + Res_trace_thickness & "um", _
+        "WhichAxis:=", "Z", _
+        "NumSides:=", "0"), _
+        Array("NAME:Attributes", _
+        "Name:=", "Via_Top_" & i, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+        "SolveInside:=", false)
+Next
+
+'***************************************************************************
+' Create Ports
+'***************************************************************************
+
+'Port 1
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", input_x - trace_50ohm_length - taper_length - 100 & "um", _
+    "YStart:=", input_y + trace_width_io/2 - trace_50ohm_width/2 & "um", _
+    "ZStart:=", -substrate_height & "um", _
+    "Width:=", trace_50ohm_width & "um", _
+    "Height:=", substrate_height + res_z_offset + Res_trace_thickness & "um", _
+    "WhichAxis:=", "X"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Port1", _
+    "Flags:=", "", _
+    "Color:=", "(0 0 255)", _
+    "Transparency:=", 0.8, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "vacuum" & Chr(34), _
+    "SolveInside:=", true)
+
+'Port 2
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", output_x + stub_length_io + trace_length_io + taper_length + trace_50ohm_length + 100 & "um", _
+    "YStart:=", output_y + trace_width_io/2 - trace_50ohm_width/2 & "um", _
+    "ZStart:=", -substrate_height & "um", _
+    "Width:=", trace_50ohm_width & "um", _
+    "Height:=", substrate_height + res_z_offset + Res_trace_thickness & "um", _
+    "WhichAxis:=", "X"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Port2", _
+    "Flags:=", "", _
+    "Color:=", "(0 0 255)", _
+    "Transparency:=", 0.8, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "vacuum" & Chr(34), _
+    "SolveInside:=", true)
+
+'Assign wave ports
+Set oModule = oDesign.GetModule("BoundarySetup")
+
+oModule.AssignWavePort Array("NAME:Port1", _
+    "Objects:=", Array("Port1"), _
+    "NumModes:=", 1, _
+    "RenormalizeAllTerminals:=", true, _
+    "UseLineModeAlignment:=", false, _
+    "DoDeembed:=", false, _
+    Array("NAME:Modes", _
+        Array("NAME:Mode1", _
+            "ModeNum:=", 1, _
+            "UseIntLine:=", true, _
+            Array("NAME:IntLine", _
+                "Start:=", Array(input_x - trace_50ohm_length - taper_length - 100 & "um", _
+                    input_y + trace_width_io/2 & "um", res_z_offset + Res_trace_thickness/2 & "um"), _
+                "End:=", Array(input_x - trace_50ohm_length - taper_length - 100 & "um", _
+                    input_y + trace_width_io/2 & "um", -substrate_height & "um")), _
+            "CharImp:=", "Zpi")), _
+    "ShowReporterFilter:=", false, _
+    "ReporterFilter:=", Array(true), _
+    "UseAnalyticAlignment:=", false)
+
+oModule.AssignWavePort Array("NAME:Port2", _
+    "Objects:=", Array("Port2"), _
+    "NumModes:=", 1, _
+    "RenormalizeAllTerminals:=", true, _
+    "UseLineModeAlignment:=", false, _
+    "DoDeembed:=", false, _
+    Array("NAME:Modes", _
+        Array("NAME:Mode1", _
+            "ModeNum:=", 1, _
+            "UseIntLine:=", true, _
+            Array("NAME:IntLine", _
+                "Start:=", Array(output_x + stub_length_io + trace_length_io + taper_length + trace_50ohm_length + 100 & "um", _
+                    output_y + trace_width_io/2 & "um", res_z_offset + Res_trace_thickness/2 & "um"), _
+                "End:=", Array(output_x + stub_length_io + trace_length_io + taper_length + trace_50ohm_length + 100 & "um", _
+                    output_y + trace_width_io/2 & "um", -substrate_height & "um")), _
+            "CharImp:=", "Zpi")), _
+    "ShowReporterFilter:=", false, _
+    "ReporterFilter:=", Array(true), _
+    "UseAnalyticAlignment:=", false)
+
+'***************************************************************************
+' Create Airbox
+'***************************************************************************
+
+oEditor.CreateBox Array("NAME:BoxParameters", _
+    "XPosition:=", "-2000um", _
+    "YPosition:=", "-2000um", _
+    "ZPosition:=", -substrate_height - 5000 & "um", _
+    "XSize:=", board_length + 4000 & "um", _
+    "YSize:=", board_width + 4000 & "um", _
+    "ZSize:=", 10000 + substrate_height & "um"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Airbox", _
+    "Flags:=", "", _
+    "Color:=", "(0 0 255)", _
+    "Transparency:=", 0.95, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "air" & Chr(34), _
+    "SolveInside:=", true)
+
+'Assign radiation boundary
+oModule.AssignRadiation Array("NAME:Radiation", _
+    "Objects:=", Array("Airbox"), _
+    "IsIncidentField:=", false, _
+    "IsEnforcedField:=", false, _
+    "IsFssReference:=", false, _
+    "IsForPML:=", false, _
+    "UseAdaptiveIE:=", false, _
+    "IncludeInPostproc:=", true)
+
+'***************************************************************************
+' Create Solution Setup
+'***************************************************************************
+
+Set oModule = oDesign.GetModule("AnalysisSetup")
+
+'Estimate frequency from dimensions (rough calculation)
+'For microstrip, wavelength ≈ c/(f*sqrt(er_eff))
+'With these small dimensions, likely in the 20-40 GHz range
+Dim center_freq, start_freq, stop_freq
+center_freq = 30    'GHz (adjust based on your design)
+start_freq = 20     'GHz
+stop_freq = 40      'GHz
+
+'Create adaptive solution
+oModule.InsertSetup "HfssDriven", Array("NAME:Setup1", _
+    "Frequency:=", center_freq & "GHz", _
+    "MaxDeltaS:=", 0.02, _
+    "MaximumPasses:=", 20, _
+    "MinimumPasses:=", 1, _
+    "MinimumConvergedPasses:=", 1, _
+    "PercentRefinement:=", 30, _
+    "IsEnabled:=", true, _
+    "BasisOrder:=", 1, _
+    "DoLambdaRefine:=", true, _
+    "DoMaterialLambda:=", true, _
+    "SetLambdaTarget:=", false, _
+    "Target:=", 0.3333, _
+    "UseMaxTetIncrease:=", false, _
+    "PortAccuracy:=", 2, _
+    "UseABCOnPort:=", false, _
+    "SetPortMinMaxTri:=", false, _
+    "UseDomains:=", false, _
+    "UseIterativeSolver:=", false, _
+    "SaveRadFieldsOnly:=", false, _
+    "SaveAnyFields:=", true, _
+    "IESolverType:=", "Auto", _
+    "LambdaTargetForIESolver:=", 0.15, _
+    "UseDefaultLambdaTgtForIESolver:=", true)
+
+'Add frequency sweep
+oModule.InsertFrequencySweep "Setup1", Array("NAME:Sweep", _
+    "IsEnabled:=", true, _
+    "RangeType:=", "LinearCount", _
+    "RangeStart:=", start_freq & "GHz", _
+    "RangeEnd:=", stop_freq & "GHz", _
+    "RangeCount:=", 801, _
+    "Type:=", "Interpolating", _
+    "SaveFields:=", false, _
+    "SaveRadFields:=", false, _
+    "InterpTolerance:=", 0.5, _
+    "InterpMaxSolns:=", 250, _
+    "InterpMinSolns:=", 0, _
+    "InterpMinSubranges:=", 1, _
+    "ExtrapToDC:=", false, _
+    "InterpUseS:=", true, _
+    "InterpUsePortImped:=", false, _
+    "InterpUsePropConst:=", true, _
+    "UseDerivativeConvergence:=", false, _
+    "InterpDerivTolerance:=", 0.2, _
+    "UseFullBasis:=", true, _
+    "EnforcePassivity:=", true, _
+    "PassivityErrorTolerance:=", 0.0001)
+
+'***************************************************************************
+' Additional Via Creation (completing the via fence)
+'***************************************************************************
+
+'Bottom row of vias
+For i = 0 To num_vias_x
+    via_x = cutout_x - via_spacing + i * via_spacing
+    via_y = cutout_y + cutout_height + via_spacing
+    
+    oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+        "XCenter:=", via_x & "um", _
+        "YCenter:=", via_y & "um", _
+        "ZCenter:=", -substrate_height & "um", _
+        "Radius:=", via_diameter/2 & "um", _
+        "Height:=", substrate_height + Res_trace_thickness & "um", _
+        "WhichAxis:=", "Z", _
+        "NumSides:=", "0"), _
+        Array("NAME:Attributes", _
+        "Name:=", "Via_Bottom_" & i, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+        "SolveInside:=", false)
+Next
+
+'Left column of vias
+For j = 1 To num_vias_y - 1
+    via_x = cutout_x - via_spacing
+    via_y = cutout_y - via_spacing + j * via_spacing
+    
+    oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+        "XCenter:=", via_x & "um", _
+        "YCenter:=", via_y & "um", _
+        "ZCenter:=", -substrate_height & "um", _
+        "Radius:=", via_diameter/2 & "um", _
+        "Height:=", substrate_height + Res_trace_thickness & "um", _
+        "WhichAxis:=", "Z", _
+        "NumSides:=", "0"), _
+        Array("NAME:Attributes", _
+        "Name:=", "Via_Left_" & j, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+        "SolveInside:=", false)
+Next
+
+'Right column of vias
+For j = 1 To num_vias_y - 1
+    via_x = cutout_x + cutout_width + via_spacing
+    via_y = cutout_y - via_spacing + j * via_spacing
+    
+    oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+        "XCenter:=", via_x & "um", _
+        "YCenter:=", via_y & "um", _
+        "ZCenter:=", -substrate_height & "um", _
+        "Radius:=", via_diameter/2 & "um", _
+        "Height:=", substrate_height + Res_trace_thickness & "um", _
+        "WhichAxis:=", "Z", _
+        "NumSides:=", "0"), _
+        Array("NAME:Attributes", _
+        "Name:=", "Via_Right_" & j, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+        "SolveInside:=", false)
+Next
+
+'***************************************************************************
+' Create Output Taper (completing the output structure)
+'***************************************************************************
+
+Dim output_taper_points(11)
+output_taper_points(0) = output_x + stub_length_io + trace_length_io & "um"
+output_taper_points(1) = output_y + trace_width_io/2 - trace_width_io1/2 & "um"
+output_taper_points(2) = res_z_offset & "um"
+output_taper_points(3) = output_x + stub_length_io + trace_length_io & "um"
+output_taper_points(4) = output_y + trace_width_io/2 + trace_width_io1/2 & "um"
+output_taper_points(5) = res_z_offset & "um"
+output_taper_points(6) = output_x + stub_length_io + trace_length_io + taper_length & "um"
+output_taper_points(7) = output_y + trace_width_io/2 + trace_50ohm_width/2 & "um"
+output_taper_points(8) = res_z_offset & "um"
+output_taper_points(9) = output_x + stub_length_io + trace_length_io + taper_length & "um"
+output_taper_points(10) = output_y + trace_width_io/2 - trace_50ohm_width/2 & "um"
+output_taper_points(11) = res_z_offset & "um"
+
+oEditor.CreatePolyline Array("NAME:PolylineParameters", _
+    "IsPolylineCovered:=", true, _
+    "IsPolylineClosed:=", true, _
+    Array("NAME:PolylinePoints", _
+        Array("NAME:PLPoint", "X:=", output_taper_points(0), "Y:=", output_taper_points(1), "Z:=", output_taper_points(2)), _
+        Array("NAME:PLPoint", "X:=", output_taper_points(3), "Y:=", output_taper_points(4), "Z:=", output_taper_points(5)), _
+        Array("NAME:PLPoint", "X:=", output_taper_points(6), "Y:=", output_taper_points(7), "Z:=", output_taper_points(8)), _
+        Array("NAME:PLPoint", "X:=", output_taper_points(9), "Y:=", output_taper_points(10), "Z:=", output_taper_points(11))), _
+    Array("NAME:PolylineSegments", _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 0, "NoOfPoints:=", 2), _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 1, "NoOfPoints:=", 2), _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 2, "NoOfPoints:=", 2), _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 3, "NoOfPoints:=", 2)), _
+    Array("NAME:PolylineXSection", "XSectionType:=", "None", "XSectionOrient:=", "Auto", _
+        "XSectionWidth:=", "0", "XSectionTopWidth:=", "0", "XSectionHeight:=", "0", "XSectionNumSegments:=", "0", _
+        "XSectionBendType:=", "Corner")), _
+    Array("NAME:Attributes", _
+        "Name:=", "OutputTaper", _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "copper" & Chr(34), _
+        "SolveInside:=", false)
+
+'***************************************************************************
+' Unite All Copper Traces
+'***************************************************************************
+
+'Unite all trace elements
+oEditor.Unite Array("NAME:Selections", _
+    "Selections:=", "Resonator1,Resonator2,InputStub,InputTrace,Input50ohm,InputTaper,OutputStub,OutputTrace,Output50ohm,OutputTaper"), _
+    Array("NAME:UniteParameters", "KeepOriginals:=", false)
+
+'***************************************************************************
+' Create Reports
+'***************************************************************************
+
+Set oModule = oDesign.GetModule("ReportSetup")
+
+'Create S-parameter magnitude plot
+oModule.CreateReport "S Parameters Plot", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("dB(S(1,1))", "dB(S(2,1))")), _
+    Array()
+
+'Create S-parameter phase plot
+oModule.CreateReport "S Parameters Phase", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("ang_deg(S(2,1))")), _
+    Array()
+
+'Create group delay plot
+oModule.CreateReport "Group Delay", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("GroupDelay(S(2,1))")), _
+    Array()
+
+'***************************************************************************
+' Validation and Save
+'***************************************************************************
+
+'Validate the design
+oDesign.Validate
+
+'Save project
+oProject.Save
+
+MsgBox "High frequency coupled line filter has been created successfully!" & vbCrLf & _
+       "Center frequency estimated at " & center_freq & " GHz" & vbCrLf & _
+       "Please adjust frequency range if needed."
