@@ -1,0 +1,218 @@
+’***************************************************************************
+’ HFSS VBScript for Complete Multi-Layer Stripline Filter - PART 3 OF 8
+’ Helper Functions for Creating Geometry
+’***************************************************************************
+
+’***************************************************************************
+’ Helper Functions
+’***************************************************************************
+
+’Function to create a polyline from vertex array
+Function CreatePolylineFromVertices(name, vertices, material, isCovered)
+Dim points()
+ReDim points(UBound(vertices))
+Dim i
+For i = 0 To UBound(vertices)
+points(i) = Array(“NAME:PLPoint”, _
+“X:=”, vertices(i)(0) & “mil”, _
+“Y:=”, vertices(i)(1) & “mil”, _
+“Z:=”, vertices(i)(2) & “mil”)
+Next
+
+```
+oEditor.CreatePolyline Array("NAME:PolylineParameters", _
+    "IsPolylineCovered:=", isCovered, _
+    "IsPolylineClosed:=", true, _
+    Array("NAME:PolylinePoints", points), _
+    Array("NAME:PolylineSegments", _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 0, "NoOfPoints:=", UBound(vertices) + 1)), _
+    Array("NAME:PolylineXSection", "XSectionType:=", "None", "XSectionOrient:=", "Auto", _
+        "XSectionWidth:=", "0", "XSectionTopWidth:=", "0", "XSectionHeight:=", "0", _
+        "XSectionNumSegments:=", "0", "XSectionBendType:=", "Corner")), _
+    Array("NAME:Attributes", _
+        "Name:=", name, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & material & Chr(34), _
+        "SolveInside:=", false)
+```
+
+End Function
+
+’Function to create line segments (traces) from start/end points
+Function CreateLineFromPoints(name, start_point, end_point, z_coord, width, material)
+Dim line_vertices
+line_vertices = Array( _
+Array(start_point(0), start_point(1), z_coord), _
+Array(end_point(0), end_point(1), z_coord))
+
+```
+Dim points()
+ReDim points(1)
+points(0) = Array("NAME:PLPoint", _
+    "X:=", line_vertices(0)(0) & "mil", _
+    "Y:=", line_vertices(0)(1) & "mil", _
+    "Z:=", line_vertices(0)(2) & "mil")
+points(1) = Array("NAME:PLPoint", _
+    "X:=", line_vertices(1)(0) & "mil", _
+    "Y:=", line_vertices(1)(1) & "mil", _
+    "Z:=", line_vertices(1)(2) & "mil")
+
+oEditor.CreatePolyline Array("NAME:PolylineParameters", _
+    "IsPolylineCovered:=", false, _
+    "IsPolylineClosed:=", false, _
+    Array("NAME:PolylinePoints", points), _
+    Array("NAME:PolylineSegments", _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 0, "NoOfPoints:=", 2)), _
+    Array("NAME:PolylineXSection", "XSectionType:=", "Rectangle", "XSectionOrient:=", "Auto", _
+        "XSectionWidth:=", width & "mil", "XSectionTopWidth:=", "0", "XSectionHeight:=", "0.65mil", _
+        "XSectionNumSegments:=", "0", "XSectionBendType:=", "Corner")), _
+    Array("NAME:Attributes", _
+        "Name:=", name, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & material & Chr(34), _
+        "SolveInside:=", false)
+```
+
+End Function
+
+’Function to create cylindrical via
+Function CreateVia(name, x, y, z_start, z_end, radius)
+oEditor.CreateCylinder Array(“NAME:CylinderParameters”, _
+“XCenter:=”, x & “mil”, _
+“YCenter:=”, y & “mil”, _
+“ZCenter:=”, z_start & “mil”, _
+“Radius:=”, radius & “mil”, _
+“Height:=”, z_end - z_start & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSides:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, name, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “LossyCopper” & Chr(34), _
+“SolveInside:=”, false)
+End Function
+
+’Function to create rectangular resonator
+Function CreateRectangularResonator(name, center_x, center_y, width, height, z_coord, material)
+Dim rect_vertices
+rect_vertices = Array( _
+Array(center_x - width/2, center_y - height/2, z_coord), _
+Array(center_x + width/2, center_y - height/2, z_coord), _
+Array(center_x + width/2, center_y + height/2, z_coord), _
+Array(center_x - width/2, center_y + height/2, z_coord))
+
+```
+Call CreatePolylineFromVertices(name, rect_vertices, material, true)
+```
+
+End Function
+
+’Function to create coupling gap between two points
+Function CreateCouplingGap(name, x1, y1, x2, y2, gap_width, trace_width, z_coord, material)
+’Calculate gap center and orientation
+Dim gap_center_x, gap_center_y, gap_length
+gap_center_x = (x1 + x2) / 2
+gap_center_y = (y1 + y2) / 2
+gap_length = Sqr((x2-x1)^2 + (y2-y1)^2)
+
+```
+'Create two trace segments with gap
+Dim segment_length
+segment_length = (gap_length - gap_width) / 2
+
+'This is a simplified implementation - you may need to adjust for different orientations
+'For horizontal gaps:
+If Abs(y2 - y1) < 0.1 Then
+    'Create left segment
+    Call CreateLineFromPoints(name & "_Left", Array(x1, y1), Array(gap_center_x - gap_width/2, y1), z_coord, trace_width, material)
+    'Create right segment  
+    Call CreateLineFromPoints(name & "_Right", Array(gap_center_x + gap_width/2, y1), Array(x2, y2), z_coord, trace_width, material)
+End If
+```
+
+End Function
+
+’Function to create spiral inductor (simplified)
+Function CreateSpiralInductor(name, center_x, center_y, z_coord, turns, track_width, spacing, inner_radius, material)
+’This creates a simple circular approximation
+’For actual spiral, you would need to calculate spiral coordinates
+oEditor.CreateCircle Array(“NAME:CircleParameters”, _
+“IsCovered:=”, false, _
+“XCenter:=”, center_x & “mil”, _
+“YCenter:=”, center_y & “mil”, _
+“ZCenter:=”, z_coord & “mil”, _
+“Radius:=”, (inner_radius + turns * (track_width + spacing)) & “mil”, _
+“WhichAxis:=”, “Z”, _
+“NumSegments:=”, “0”), _
+Array(“NAME:Attributes”, _
+“Name:=”, name, _
+“Flags:=”, “”, _
+“Color:=”, “(255 128 0)”, _
+“Transparency:=”, 0, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & material & Chr(34), _
+“SolveInside:=”, false)
+End Function
+
+’***************************************************************************
+’ Utility Functions for Design Verification
+’***************************************************************************
+
+’Function to check if coordinates are within board bounds
+Function IsWithinBounds(x, y, board_vertices)
+’Simplified bounds check - you can implement more sophisticated polygon checking
+Dim min_x, max_x, min_y, max_y
+min_x = 9999
+max_x = -9999
+min_y = 9999
+max_y = -9999
+
+```
+Dim i
+For i = 0 To UBound(board_vertices)
+    If CDbl(board_vertices(i)(0)) < min_x Then min_x = CDbl(board_vertices(i)(0))
+    If CDbl(board_vertices(i)(0)) > max_x Then max_x = CDbl(board_vertices(i)(0))
+    If CDbl(board_vertices(i)(1)) < min_y Then min_y = CDbl(board_vertices(i)(1))
+    If CDbl(board_vertices(i)(1)) > max_y Then max_y = CDbl(board_vertices(i)(1))
+Next
+
+If CDbl(x) >= min_x And CDbl(x) <= max_x And CDbl(y) >= min_y And CDbl(y) <= max_y Then
+    IsWithinBounds = True
+Else
+    IsWithinBounds = False
+End If
+```
+
+End Function
+
+’Function to calculate distance between two points
+Function CalculateDistance(x1, y1, x2, y2)
+CalculateDistance = Sqr((CDbl(x2) - CDbl(x1))^2 + (CDbl(y2) - CDbl(y1))^2)
+End Function
+
+’***************************************************************************
+’ STATUS MESSAGE
+’***************************************************************************
+
+MsgBox “Part 3 of 8 Complete!” & vbCrLf & _
+“Helper Functions Created:” & vbCrLf & _
+“- CreatePolylineFromVertices” & vbCrLf & _
+“- CreateLineFromPoints” & vbCrLf & _
+“- CreateVia” & vbCrLf & _
+“- CreateRectangularResonator” & vbCrLf & _
+“- CreateCouplingGap” & vbCrLf & _
+“- CreateSpiralInductor” & vbCrLf & _
+“- Utility functions for verification” & vbCrLf & _
+vbCrLf & _
+“Continue with Part 4 to add resonators.”
+
+’END OF PART 3 - Continue with Part 4 for Resonator Creation
