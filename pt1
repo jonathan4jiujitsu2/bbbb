@@ -1,0 +1,130 @@
+’***************************************************************************
+’ HFSS VBScript for Complete Multi-Layer Stripline Filter - PART 1 OF 8
+’ Initialization, Materials, and Board Outline Setup
+’***************************************************************************
+
+Dim oAnsoftApp
+Dim oDesktop
+Dim oProject
+Dim oDesign
+Dim oEditor
+Dim oModule
+
+’Initialize HFSS
+Set oAnsoftApp = CreateObject(“AnsoftHfss.HfssScriptInterface”)
+Set oDesktop = oAnsoftApp.GetAppDesktop()
+oDesktop.RestoreWindow
+Set oProject = oDesktop.NewProject
+oProject.InsertDesign “HFSS”, “MultiLayerStriplineFilter”, “DrivenModal”, “”
+Set oDesign = oProject.SetActiveDesign(“MultiLayerStriplineFilter”)
+Set oEditor = oDesign.SetActiveEditor(“3D Modeler”)
+
+’Set units to mils
+oEditor.SetModelUnits Array(“NAME:Units Parameter”, “Units:=”, “mil”, “Rescale:=”, false)
+
+’***************************************************************************
+’ Material Definitions
+’***************************************************************************
+
+Set oDefinitionManager = oProject.GetDefinitionManager()
+
+’Create Rogers 3010 material (er = 10.2)
+oDefinitionManager.AddMaterial Array(“NAME:Rogers3010”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“permittivity:=”, “10.2”, _
+“dielectric_loss_tangent:=”, “0.0023”)
+
+’Create 2929 prepreg material
+oDefinitionManager.AddMaterial Array(“NAME:Prepreg2929”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“permittivity:=”, “2.94”, _
+“dielectric_loss_tangent:=”, “0.003”)
+
+’Create lossy copper for vias and stripline
+oDefinitionManager.AddMaterial Array(“NAME:LossyCopper”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“conductivity:=”, “4.1e7”)
+
+’Create perfect conductor for resonators
+oDefinitionManager.AddMaterial Array(“NAME:PEC”, _
+“CoordinateSystemType:=”, “Cartesian”, _
+Array(“NAME:AttachedData”), _
+“conductivity:=”, “1e30”)
+
+’***************************************************************************
+’ SECTION 1: BOARD OUTLINE VERTICES
+’ Replace the array below with your exact board outline vertex data
+’ Format: Array(“X_coordinate”, “Y_coordinate”, “Z_coordinate”)
+’***************************************************************************
+
+Dim board_vertices
+board_vertices = Array( _
+Array(“189.6973106”, “123.7038552”, “19.5”), _
+Array(“164.1067594”, “123.7038552”, “19.5”), _
+Array(“164.1067594”, “67.4046426”, “19.5”), _
+Array(“23.62204724”, “67.4046426”, “19.5”), _
+Array(“23.62204724”, “160.4816443”, “19.5”), _
+Array(”-216.4689641”, “160.4816443”, “19.5”), _
+Array(”-216.4689641”, “77.81409142”, “19.5”), _
+Array(”-321.2681912”, “77.81409142”, “19.5”), _
+Array(”-321.2681912”, “-88.53749958”, “19.5”), _
+Array(”-400.0083486”, “-88.53749958”, “19.5”), _
+Array(”-400.0083486”, “-154.5374996”, “19.5”), _
+Array(”-189.6973106”, “-154.5374996”, “19.5”), _
+Array(”-189.6973106”, “-123.7038552”, “19.5”), _
+Array(”-164.1067594”, “-123.7038552”, “19.5”), _
+Array(”-164.1067594”, “-67.4046426”, “19.5”), _
+Array(”-23.62204724”, “-67.4046426”, “19.5”), _
+Array(”-23.62204724”, “-160.4816443”, “19.5”), _
+Array(“216.4689641”, “-160.4816443”, “19.5”), _
+Array(“216.4689641”, “-77.81409142”, “19.5”), _
+Array(“321.2681912”, “-77.81409142”, “19.5”), _
+Array(“321.2681912”, “88.53749958”, “19.5”), _
+Array(“400.0083486”, “88.53749958”, “19.5”), _
+Array(“400.0083486”, “154.5374996”, “19.5”), _
+Array(“189.6973106”, “154.5374996”, “19.5”))
+
+’Create board outline
+Dim polyline_points()
+ReDim polyline_points(UBound(board_vertices))
+Dim i
+For i = 0 To UBound(board_vertices)
+polyline_points(i) = Array(“NAME:PLPoint”, _
+“X:=”, board_vertices(i)(0) & “mil”, _
+“Y:=”, board_vertices(i)(1) & “mil”, _
+“Z:=”, board_vertices(i)(2) & “mil”)
+Next
+
+oEditor.CreatePolyline Array(“NAME:PolylineParameters”, _
+“IsPolylineCovered:=”, true, _
+“IsPolylineClosed:=”, true, _
+Array(“NAME:PolylinePoints”, polyline_points), _
+Array(“NAME:PolylineSegments”, _
+Array(“NAME:PLSegment”, “SegmentType:=”, “Line”, “StartIndex:=”, 0, “NoOfPoints:=”, UBound(board_vertices) + 1)), _
+Array(“NAME:PolylineXSection”, “XSectionType:=”, “None”, “XSectionOrient:=”, “Auto”, _
+“XSectionWidth:=”, “0”, “XSectionTopWidth:=”, “0”, “XSectionHeight:=”, “0”, _
+“XSectionNumSegments:=”, “0”, “XSectionBendType:=”, “Corner”)), _
+Array(“NAME:Attributes”, _
+“Name:=”, “BoardOutline”, _
+“Flags:=”, “”, _
+“Color:=”, “(0 128 0)”, _
+“Transparency:=”, 0.8, _
+“PartCoordinateSystem:=”, “Global”, _
+“MaterialValue:=”, Chr(34) & “Rogers3010” & Chr(34), _
+“SolveInside:=”, true)
+
+’***************************************************************************
+’ STATUS MESSAGE
+’***************************************************************************
+
+MsgBox “Part 1 of 8 Complete!” & vbCrLf & _
+“- HFSS Initialized” & vbCrLf & _
+“- Materials Defined” & vbCrLf & _
+“- Board Outline Created” & vbCrLf & _
+vbCrLf & _
+“Continue with Part 2 to create the layer stack.”
+
+’END OF PART 1 - Continue with Part 2 for Layer Stack Creation
