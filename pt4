@@ -1,0 +1,184 @@
+’***************************************************************************
+’ HFSS VBScript for Complete Multi-Layer Stripline Filter - PART 4 OF 8
+’ Resonator Creation - REPLACE ALL COORDINATES WITH YOUR ACTUAL DATA
+’***************************************************************************
+
+’***************************************************************************
+’ SECTION 2: RESONATOR VERTICES
+’ REPLACE ALL PLACEHOLDER COORDINATES WITH YOUR ACTUAL VERTEX DATA
+’ Each resonator should be defined as an array of vertices
+’***************************************************************************
+
+’Resonator 1 - Layer 2 (Z = 11.6-12.25) - REPLACE WITH YOUR ACTUAL VERTICES
+Dim res1_vertices
+res1_vertices = Array( _
+Array(”-58.43133245”, “14.64873709”, “11.6”), _
+Array(”-29.13385827”, “14.64873709”, “11.6”), _
+Array(”-29.13385827”, “2.197310563”, “11.6”), _
+Array(”-58.43133245”, “2.197310563”, “11.6”))
+
+Call CreatePolylineFromVertices(“Resonator1”, res1_vertices, “PEC”, true)
+
+’Resonator 2 - Layer 4 (Z = 17.25-17.9) - REPLACE WITH YOUR ACTUAL COORDINATES
+Dim res2_vertices
+res2_vertices = Array( _
+Array(”-188.909909”, “-124.6152668”, “17.25”), _
+Array(”-95.43920646”, “-124.6152668”, “17.25”), _
+Array(”-95.43920646”, “-51.26291032”, “17.25”), _
+Array(”-188.909909”, “-51.26291032”, “17.25”))
+
+Call CreatePolylineFromVertices(“Resonator2”, res2_vertices, “PEC”, true)
+
+’Resonator 3 - Layer 2 (Z = 11.6-12.25) - REPLACE WITH YOUR ACTUAL COORDINATES  
+Dim res3_vertices
+res3_vertices = Array( _
+Array(”-161.7445547”, “78.42826465”, “11.6”), _
+Array(”-122.6045608”, “78.42826465”, “11.6”), _
+Array(”-122.6045608”, “97.4499125”, “11.6”), _
+Array(”-161.7445547”, “97.4499125”, “11.6”))
+
+Call CreatePolylineFromVertices(“Resonator3”, res3_vertices, “PEC”, true)
+
+’Resonator 4 - Layer 4 (Z = 17.25-17.9) - REPLACE WITH YOUR ACTUAL COORDINATES
+Dim res4_vertices
+res4_vertices = Array( _
+Array(“161.7445547”, “-85.90343111”, “17.25”), _
+Array(“188.909909”, “-85.90343111”, “17.25”), _
+Array(“188.909909”, “-51.26291032”, “17.25”), _
+Array(“161.7445547”, “-51.26291032”, “17.25”))
+
+Call CreatePolylineFromVertices(“Resonator4”, res4_vertices, “PEC”, true)
+
+’Resonator 5 - Layer 4 (Z = 17.25-17.9) - REPLACE WITH YOUR ACTUAL COORDINATES
+Dim res5_vertices
+res5_vertices = Array( _
+Array(“95.43920646”, “-51.26291032”, “17.9”), _
+Array(“188.909909”, “-51.26291032”, “17.9”), _
+Array(“188.909909”, “-124.6152668”, “17.9”), _
+Array(“95.43920646”, “-124.6152668”, “17.9”))
+
+Call CreatePolylineFromVertices(“Resonator5”, res5_vertices, “PEC”, true)
+
+’Resonator 6 - Layer 4 (Z = 17.25-17.9) - REPLACE WITH YOUR ACTUAL COORDINATES
+Dim res6_vertices
+res6_vertices = Array( _
+Array(“95.43920646”, “51.26291032”, “17.25”), _
+Array(“188.909909”, “51.26291032”, “17.25”), _
+Array(“188.909909”, “124.6152668”, “17.25”), _
+Array(“95.43920646”, “124.6152668”, “17.25”))
+
+Call CreatePolylineFromVertices(“Resonator6”, res6_vertices, “PEC”, true)
+
+’Resonator 7 - Layer 2 (Z = 11.6-12.25) - REPLACE WITH YOUR ACTUAL COORDINATES
+Dim res7_vertices
+res7_vertices = Array( _
+Array(“122.6045608”, “78.42826465”, “12.25”), _
+Array(“161.7445547”, “78.42826465”, “12.25”), _
+Array(“161.7445547”, “97.4499125”, “12.25”), _
+Array(“122.6045608”, “97.4499125”, “12.25”))
+
+Call CreatePolylineFromVertices(“Resonator7”, res7_vertices, “PEC”, true)
+
+’Resonator 8 - Layer 2 (Z = 11.6-12.25) - REPLACE WITH YOUR ACTUAL COORDINATES
+Dim res8_vertices
+res8_vertices = Array( _
+Array(“161.7445547”, “-97.4499125”, “11.6”), _
+Array(“188.909909”, “-97.4499125”, “11.6”), _
+Array(“188.909909”, “-85.90343111”, “11.6”), _
+Array(“161.7445547”, “-85.90343111”, “11.6”))
+
+Call CreatePolylineFromVertices(“Resonator8”, res8_vertices, “PEC”, true)
+
+’***************************************************************************
+’ ADDITIONAL RESONATOR TEMPLATES
+’ Use these templates if you need more complex resonator shapes
+’***************************************************************************
+
+’Template for L-shaped resonator
+’Dim resL_vertices
+’resL_vertices = Array( _
+’    Array(“X1”, “Y1”, “Z”), _
+’    Array(“X2”, “Y1”, “Z”), _
+’    Array(“X2”, “Y2”, “Z”), _
+’    Array(“X3”, “Y2”, “Z”), _
+’    Array(“X3”, “Y3”, “Z”), _
+’    Array(“X1”, “Y3”, “Z”))
+’Call CreatePolylineFromVertices(“ResonatorL”, resL_vertices, “PEC”, true)
+
+’Template for T-shaped resonator
+’Dim resT_vertices
+’resT_vertices = Array( _
+’    Array(“X1”, “Y1”, “Z”), _
+’    Array(“X2”, “Y1”, “Z”), _
+’    Array(“X2”, “Y2”, “Z”), _
+’    Array(“X3”, “Y2”, “Z”), _
+’    Array(“X3”, “Y3”, “Z”), _
+’    Array(“X4”, “Y3”, “Z”), _
+’    Array(“X4”, “Y4”, “Z”), _
+’    Array(“X5”, “Y4”, “Z”), _
+’    Array(“X5”, “Y5”, “Z”), _
+’    Array(“X1”, “Y5”, “Z”))
+’Call CreatePolylineFromVertices(“ResonatorT”, resT_vertices, “PEC”, true)
+
+’Template for circular/rounded resonator
+’Call CreateRectangularResonator(“CircularRes”, “center_x”, “center_y”, “width”, “height”, “z_coord”, “PEC”)
+
+’***************************************************************************
+’ RESONATOR MODIFICATION SECTION
+’ Add code here to modify resonator shapes after creation
+’***************************************************************************
+
+’Example: Add notches or slots to resonators
+’oEditor.CreateRectangle Array(“NAME:RectangleParameters”, _
+’    “IsCovered:=”, true, _
+’    “XStart:=”, “X_start”, _
+’    “YStart:=”, “Y_start”, _
+’    “ZStart:=”, “Z_coord”, _
+’    “Width:=”, “notch_width”, _
+’    “Height:=”, “notch_height”, _
+’    “WhichAxis:=”, “Z”), _
+’    Array(“NAME:Attributes”, _
+’    “Name:=”, “Notch1”, _
+’    “Flags:=”, “”, _
+’    “Color:=”, “(255 0 0)”, _
+’    “Transparency:=”, 0, _
+’    “PartCoordinateSystem:=”, “Global”, _
+’    “MaterialValue:=”, Chr(34) & “vacuum” & Chr(34), _
+’    “SolveInside:=”, true)
+
+’Subtract notch from resonator
+’oEditor.Subtract Array(“NAME:Selections”, “Selections:=”, “Resonator1”), _
+’    Array(“NAME:Selections”, “Selections:=”, “Notch1”), _
+’    Array(“NAME:SubtractParameters”, “KeepOriginals:=”, false)
+
+’***************************************************************************
+’ RESONATOR SUMMARY
+’***************************************************************************
+’ Resonator 1: Layer 2, rectangular, coordinates as specified
+’ Resonator 2: Layer 4, rectangular, coordinates as specified  
+’ Resonator 3: Layer 2, rectangular, coordinates as specified
+’ Resonator 4: Layer 4, rectangular, coordinates as specified
+’ Resonator 5: Layer 4, rectangular, coordinates as specified
+’ Resonator 6: Layer 4, rectangular, coordinates as specified
+’ Resonator 7: Layer 2, rectangular, coordinates as specified
+’ Resonator 8: Layer 2, rectangular, coordinates as specified
+’***************************************************************************
+
+’***************************************************************************
+’ STATUS MESSAGE
+’***************************************************************************
+
+MsgBox “Part 4 of 8 Complete!” & vbCrLf & _
+“8 Resonators Created:” & vbCrLf & _
+“- Resonator 1: Layer 2” & vbCrLf & _
+“- Resonator 2: Layer 4” & vbCrLf & _
+“- Resonator 3: Layer 2” & vbCrLf & _
+“- Resonator 4: Layer 4” & vbCrLf & _
+“- Resonator 5: Layer 4” & vbCrLf & _
+“- Resonator 6: Layer 4” & vbCrLf & _
+“- Resonator 7: Layer 2” & vbCrLf & _
+“- Resonator 8: Layer 2” & vbCrLf & _
+vbCrLf & _
+“Continue with Part 5 to add transmission lines.”
+
+’END OF PART 4 - Continue with Part 5 for Transmission Lines and Traces
