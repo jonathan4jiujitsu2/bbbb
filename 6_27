@@ -1,0 +1,691 @@
+'***************************************************************************
+' HFSS VBScript for Complete Multi-Layer Stripline Filter
+' With Exact Vertex Data Implementation
+'***************************************************************************
+
+Dim oAnsoftApp
+Dim oDesktop
+Dim oProject
+Dim oDesign
+Dim oEditor
+Dim oModule
+
+'Initialize HFSS
+Set oAnsoftApp = CreateObject("AnsoftHfss.HfssScriptInterface")
+Set oDesktop = oAnsoftApp.GetAppDesktop()
+oDesktop.RestoreWindow
+Set oProject = oDesktop.NewProject
+oProject.InsertDesign "HFSS", "MultiLayerStriplineFilter", "DrivenModal", ""
+Set oDesign = oProject.SetActiveDesign("MultiLayerStriplineFilter")
+Set oEditor = oDesign.SetActiveEditor("3D Modeler")
+
+'Set units to mils
+oEditor.SetModelUnits Array("NAME:Units Parameter", "Units:=", "mil", "Rescale:=", false)
+
+'***************************************************************************
+' Material Definitions
+'***************************************************************************
+
+Set oDefinitionManager = oProject.GetDefinitionManager()
+
+'Create Rogers 3010 material (er = 10.2)
+oDefinitionManager.AddMaterial Array("NAME:Rogers3010", _
+    "CoordinateSystemType:=", "Cartesian", _
+    Array("NAME:AttachedData"), _
+    "permittivity:=", "10.2", _
+    "dielectric_loss_tangent:=", "0.0023")
+
+'Create 2929 prepreg material
+oDefinitionManager.AddMaterial Array("NAME:Prepreg2929", _
+    "CoordinateSystemType:=", "Cartesian", _
+    Array("NAME:AttachedData"), _
+    "permittivity:=", "2.94", _
+    "dielectric_loss_tangent:=", "0.003")
+
+'Create lossy copper for vias and stripline
+oDefinitionManager.AddMaterial Array("NAME:LossyCopper", _
+    "CoordinateSystemType:=", "Cartesian", _
+    Array("NAME:AttachedData"), _
+    "conductivity:=", "4.1e7")
+
+
+'***************************************************************************
+' Create Board Outline from Vertex Data
+'***************************************************************************
+
+'Create the complex board outline using polyline
+Dim board_vertices
+board_vertices = Array( _
+    Array("189.6973106", "123.7038552", "19.5"), _
+    Array("164.1067594", "123.7038552", "19.5"), _
+    Array("164.1067594", "67.4046426", "19.5"), _
+    Array("23.62204724", "67.4046426", "19.5"), _
+    Array("23.62204724", "160.4816443", "19.5"), _
+    Array("-216.4689641", "160.4816443", "19.5"), _
+    Array("-216.4689641", "77.81409142", "19.5"), _
+    Array("-321.2681912", "77.81409142", "19.5"), _
+    Array("-321.2681912", "-88.53749958", "19.5"), _
+    Array("-400.0083486", "-88.53749958", "19.5"), _
+    Array("-400.0083486", "-154.5374996", "19.5"), _
+    Array("-189.6973106", "-154.5374996", "19.5"), _
+    Array("-189.6973106", "-123.7038552", "19.5"), _
+    Array("-164.1067594", "-123.7038552", "19.5"), _
+    Array("-164.1067594", "-67.4046426", "19.5"), _
+    Array("-23.62204724", "-67.4046426", "19.5"), _
+    Array("-23.62204724", "-160.4816443", "19.5"), _
+    Array("216.4689641", "-160.4816443", "19.5"), _
+    Array("216.4689641", "-77.81409142", "19.5"), _
+    Array("321.2681912", "-77.81409142", "19.5"), _
+    Array("321.2681912", "88.53749958", "19.5"), _
+    Array("400.0083486", "88.53749958", "19.5"), _
+    Array("400.0083486", "154.5374996", "19.5"), _
+    Array("189.6973106", "154.5374996", "19.5"))
+
+'Create polyline points
+Dim polyline_points()
+ReDim polyline_points(UBound(board_vertices))
+Dim i
+For i = 0 To UBound(board_vertices)
+    polyline_points(i) = Array("NAME:PLPoint", _
+        "X:=", board_vertices(i)(0) & "mil", _
+        "Y:=", board_vertices(i)(1) & "mil", _
+        "Z:=", board_vertices(i)(2) & "mil")
+Next
+
+'Create board outline as covered polyline
+oEditor.CreatePolyline Array("NAME:PolylineParameters", _
+    "IsPolylineCovered:=", true, _
+    "IsPolylineClosed:=", true, _
+    Array("NAME:PolylinePoints", polyline_points), _
+    Array("NAME:PolylineSegments", _
+        Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 0, "NoOfPoints:=", 24)), _
+    Array("NAME:PolylineXSection", "XSectionType:=", "None", "XSectionOrient:=", "Auto", _
+        "XSectionWidth:=", "0", "XSectionTopWidth:=", "0", "XSectionHeight:=", "0", _
+        "XSectionNumSegments:=", "0", "XSectionBendType:=", "Corner")), _
+    Array("NAME:Attributes", _
+        "Name:=", "BoardOutline", _
+        "Flags:=", "", _
+        "Color:=", "(0 128 0)", _
+        "Transparency:=", 0.8, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "Rogers3010" & Chr(34), _
+        "SolveInside:=", true)
+
+
+'***************************************************************************
+' Create Layer Stack (using thicknesses)
+'***************************************************************************
+
+'Convert board outline to 3D with proper thickness
+oEditor.SweepAlongVector Array("NAME:Selections", _
+    "Selections:=", "BoardOutline", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:VectorSweepParameters", _
+    "DraftAngle:=", "0deg", _
+    "DraftType:=", "Round", _
+    "CheckFaceFaceIntersection:=", false, _
+    "SweepVectorX:=", "0", _
+    "SweepVectorY:=", "0", _
+    "SweepVectorZ:=", "-10mil")
+
+'Rename to Layer5 (Top Rogers)
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "BoardOutline"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "Layer5_Rogers"))))
+
+'Create Layer 4 - Prepreg 2929 (2.25 mil)
+oEditor.Copy Array("NAME:Selections", "Selections:=", "Layer5_Rogers")
+oEditor.Paste
+oEditor.Move Array("NAME:Selections", "Selections:=", "Layer5_Rogers1", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:TranslateParameters", _
+    "TranslateVectorX:=", "0", _
+    "TranslateVectorY:=", "0", _
+    "TranslateVectorZ:=", "-10mil")
+oEditor.Scale Array("NAME:Selections", "Selections:=", "Layer5_Rogers1", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:ScaleParameters", _
+    "ScaleX:=", "1", _
+    "ScaleY:=", "1", _
+    "ScaleZ:=", "0.225")
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "Layer5_Rogers1"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "Layer4_Prepreg"), _
+            Array("NAME:Material", "Value:=", Chr(34) & "Prepreg2929" & Chr(34)))))
+
+'Create Layer 3 - Middle Rogers 3010 (5 mil)
+oEditor.Copy Array("NAME:Selections", "Selections:=", "Layer5_Rogers")
+oEditor.Paste
+oEditor.Move Array("NAME:Selections", "Selections:=", "Layer5_Rogers1", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:TranslateParameters", _
+    "TranslateVectorX:=", "0", _
+    "TranslateVectorY:=", "0", _
+    "TranslateVectorZ:=", "-12.25mil")
+oEditor.Scale Array("NAME:Selections", "Selections:=", "Layer5_Rogers1", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:ScaleParameters", _
+    "ScaleX:=", "1", _
+    "ScaleY:=", "1", _
+    "ScaleZ:=", "0.5")
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "Layer5_Rogers1"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "Layer3_Rogers"))))
+
+'Create Layer 2 - Prepreg 2929 (2.25 mil)
+oEditor.Copy Array("NAME:Selections", "Selections:=", "Layer4_Prepreg")
+oEditor.Paste
+oEditor.Move Array("NAME:Selections", "Selections:=", "Layer4_Prepreg1", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:TranslateParameters", _
+    "TranslateVectorX:=", "0", _
+    "TranslateVectorY:=", "0", _
+    "TranslateVectorZ:=", "-7.25mil")
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "Layer4_Prepreg1"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "Layer2_Prepreg"))))
+
+'Create Layer 1 - Bottom Rogers 3010 (10 mil)
+oEditor.Copy Array("NAME:Selections", "Selections:=", "Layer5_Rogers")
+oEditor.Paste
+oEditor.Move Array("NAME:Selections", "Selections:=", "Layer5_Rogers1", _
+    "NewPartsModelFlag:=", "Model"), _
+    Array("NAME:TranslateParameters", _
+    "TranslateVectorX:=", "0", _
+    "TranslateVectorY:=", "0", _
+    "TranslateVectorZ:=", "-19.5mil")
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "Layer5_Rogers1"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "Layer1_Rogers"))))
+
+'***************************************************************************
+' Create All 8 Resonators Using Exact Vertex Data
+'***************************************************************************
+
+'Function to create a polyline from vertex array
+Function CreatePolylineFromVertices(name, vertices, material, isCovered)
+    Dim points()
+    ReDim points(UBound(vertices))
+    Dim i
+    For i = 0 To UBound(vertices)
+        points(i) = Array("NAME:PLPoint", _
+            "X:=", vertices(i)(0) & "mil", _
+            "Y:=", vertices(i)(1) & "mil", _
+            "Z:=", vertices(i)(2) & "mil")
+    Next
+    
+    oEditor.CreatePolyline Array("NAME:PolylineParameters", _
+        "IsPolylineCovered:=", isCovered, _
+        "IsPolylineClosed:=", true, _
+        Array("NAME:PolylinePoints", points), _
+        Array("NAME:PolylineSegments", _
+            Array("NAME:PLSegment", "SegmentType:=", "Line", "StartIndex:=", 0, "NoOfPoints:=", UBound(vertices) + 1)), _
+        Array("NAME:PolylineXSection", "XSectionType:=", "None", "XSectionOrient:=", "Auto", _
+            "XSectionWidth:=", "0", "XSectionTopWidth:=", "0", "XSectionHeight:=", "0", _
+            "XSectionNumSegments:=", "0", "XSectionBendType:=", "Corner")), _
+        Array("NAME:Attributes", _
+            "Name:=", name, _
+            "Flags:=", "", _
+            "Color:=", "(255 128 0)", _
+            "Transparency:=", 0, _
+            "PartCoordinateSystem:=", "Global", _
+            "MaterialValue:=", Chr(34) & material & Chr(34), _
+            "SolveInside:=", false)
+End Function
+
+'Resonator 1 (Layer 2, Z=11.6-12.25)
+Dim res1_complete
+res1_complete = Array( _
+    Array("-58.43133245", "14.64873709", "11.6"), _
+    Array("-29.13385827", "14.64873709", "11.6"), _
+    Array("-29.13385827", "14.64873709", "12.25"), _
+    Array("-58.43133245", "14.64873709", "12.25"), _
+    Array("-58.43133245", "2.197310563", "12.25"), _
+    Array("-85.59668678", "2.197310563", "12.25"), _
+    Array("-85.59668678", "-2.197310563", "12.25"), _
+    Array("-85.59668678", "-2.197310563", "11.6"), _
+    Array("-85.59668678", "2.197310563", "11.6"), _
+    Array("-58.43133245", "2.197310563", "11.6"), _
+    Array("-58.43133245", "-14.64873709", "11.6"), _
+    Array("-85.59668678", "-41.81409142", "11.6"), _
+    Array("-85.59668678", "-41.81409142", "12.25"), _
+    Array("1.968503937", "-41.81409142", "12.25"), _
+    Array("1.968503937", "-41.81409142", "11.6"), _
+    Array("-85.59668678", "-41.81409142", "11.6"))
+
+Call CreatePolylineFromVertices("Resonator1", res1_complete, "copper", true)
+
+'Resonator 2 (Layer 4, Z=17.25-17.9) - with gap in middle
+Dim res2_part1
+res2_part1 = Array( _
+    Array("-188.909909", "-124.6152668", "17.25"), _
+    Array("-95.43920646", "-124.6152668", "17.25"), _
+    Array("-95.43920646", "-51.26291032", "17.25"), _
+    Array("-188.909909", "-51.26291032", "17.25"))
+
+Call CreatePolylineFromVertices("Resonator2_Part1", res2_part1, "copper", true)
+
+Dim res2_part2
+res2_part2 = Array( _
+    Array("-188.909909", "51.26291032", "17.9"), _
+    Array("-95.43920646", "51.26291032", "17.9"), _
+    Array("-95.43920646", "124.6152668", "17.9"), _
+    Array("-188.909909", "124.6152668", "17.9"))
+
+Call CreatePolylineFromVertices("Resonator2_Part2", res2_part2, "copper", true)
+
+'Resonator 3 (Layer 2, Z=11.6-12.25)
+Dim res3_vertices
+res3_vertices = Array( _
+    Array("-161.7445547", "78.42826465", "11.6"), _
+    Array("-161.7445547", "97.4499125", "11.6"), _
+    Array("-122.6045608", "97.4499125", "11.6"), _
+    Array("-122.6045608", "78.42826465", "11.6"))
+
+Call CreatePolylineFromVertices("Resonator3", res3_vertices, "copper", true)
+
+'Resonator 4 (Layer 4, Z=17.25-17.9)
+Dim res4_vertices
+res4_vertices = Array( _
+    Array("161.7445547", "-85.90343111", "17.25"), _
+    Array("188.909909", "-85.90343111", "17.25"), _
+    Array("188.909909", "-51.26291032", "17.25"), _
+    Array("161.7445547", "-51.26291032", "17.25"))
+
+Call CreatePolylineFromVertices("Resonator4", res4_vertices, "copper", true)
+
+
+'Resonator 5 (Layer 4, Z=17.25-17.9)
+Dim res5_vertices
+res5_vertices = Array( _
+    Array("95.43920646", "-51.26291032", "17.9"), _
+    Array("95.43920646", "-124.6152668", "17.9"), _
+    Array("188.909909", "-124.6152668", "17.9"), _
+    Array("188.909909", "-51.26291032", "17.9"))
+
+Call CreatePolylineFromVertices("Resonator5", res5_vertices, "copper", true)
+
+'Resonator 6 (Layer 4, Z=17.25-17.9)
+Dim res6_vertices
+res6_vertices = Array( _
+    Array("95.43920646", "51.26291032", "17.25"), _
+    Array("95.43920646", "124.6152668", "17.25"), _
+    Array("188.909909", "124.6152668", "17.25"), _
+    Array("188.909909", "51.26291032", "17.25"))
+
+Call CreatePolylineFromVertices("Resonator6", res6_vertices, "copper", true)
+
+'Resonator 7 (Layer 2, Z=11.6-12.25)
+Dim res7_vertices
+res7_vertices = Array( _
+    Array("161.7445547", "78.42826465", "12.25"), _
+    Array("122.6045608", "78.42826465", "12.25"), _
+    Array("122.6045608", "97.4499125", "12.25"), _
+    Array("161.7445547", "97.4499125", "12.25"))
+
+Call CreatePolylineFromVertices("Resonator7", res7_vertices, "copper", true)
+
+'Resonator 8 (Layer 2, Z=11.6-12.25)
+Dim res8_vertices
+res8_vertices = Array( _
+    Array("161.7445547", "-97.4499125", "11.6"), _
+    Array("188.909909", "-97.4499125", "11.6"), _
+    Array("188.909909", "-85.90343111", "11.6"), _
+    Array("161.7445547", "-85.90343111", "11.6"))
+
+Call CreatePolylineFromVertices("Resonator8", res8_vertices, "copper", true)
+
+'***************************************************************************
+' Create Stripline Feed Structure (Lossy Copper)
+'***************************************************************************
+
+'Main stripline feed path
+Dim stripline_vertices
+stripline_vertices = Array( _
+    Array("-321.2681912", "-124.5374996", "12.25"), _
+    Array("-321.2681912", "-117.5374996", "12.25"), _
+    Array("-400.0083486", "-117.5374996", "12.25"), _
+    Array("-400.0083486", "-124.5374996", "12.25"), _
+    Array("-321.2681912", "-124.5374996", "11.6"), _
+    Array("-321.2681912", "117.5374996", "11.6"), _
+    Array("-400.0083486", "117.5374996", "11.6"), _
+    Array("-400.0083486", "124.5374996", "11.6"))
+
+Call CreatePolylineFromVertices("Stripline_Main", stripline_vertices, "LossyCopper", true)
+
+'Additional stripline segments
+Dim stripline_seg2
+stripline_seg2 = Array( _
+    Array("321.2681912", "124.5374996", "12.25"), _
+    Array("400.0083486", "124.5374996", "12.25"), _
+    Array("400.0083486", "117.5374996", "12.25"), _
+    Array("321.2681912", "117.5374996", "12.25"))
+
+Call CreatePolylineFromVertices("Stripline_Seg2", stripline_seg2, "LossyCopper", true)
+
+'***************************************************************************
+' Create Via Structures (Lossy Copper)
+'***************************************************************************
+
+'Function to create cylindrical via
+Function CreateVia(name, x, y, z_start, z_end, radius)
+    oEditor.CreateCylinder Array("NAME:CylinderParameters", _
+        "XCenter:=", x & "mil", _
+        "YCenter:=", y & "mil", _
+        "ZCenter:=", z_start & "mil", _
+        "Radius:=", radius & "mil", _
+        "Height:=", z_end - z_start & "mil", _
+        "WhichAxis:=", "Z", _
+        "NumSides:=", "0"), _
+        Array("NAME:Attributes", _
+        "Name:=", name, _
+        "Flags:=", "", _
+        "Color:=", "(255 128 0)", _
+        "Transparency:=", 0, _
+        "PartCoordinateSystem:=", "Global", _
+        "MaterialValue:=", Chr(34) & "LossyCopper" & Chr(34), _
+        "SolveInside:=", false)
+End Function
+
+'Create vias based on vertex data
+'Via 1 group (around perimeter)
+Call CreateVia("Via1", "-269.7169696", "17.04243788", "0", "19.5", "3")
+Call CreateVia("Via2", "-269.7169696", "-17.04243788", "0", "19.5", "3")
+Call CreateVia("Via3", "-244.945316", "41.81409142", "0", "19.5", "3")
+Call CreateVia("Via4", "-244.945316", "-41.81409142", "0", "19.5", "3")
+Call CreateVia("Via5", "-269.7169696", "-124.5374996", "0", "19.5", "3")
+Call CreateVia("Via6", "-318.2583745", "94.28749983", "0", "19.5", "3")
+Call CreateVia("Via7", "-292.3075698", "86.8587155", "0", "19.5", "3")
+Call CreateVia("Via8", "-341.2583745", "94.28749983", "0", "19.5", "3")
+Call CreateVia("Via9", "-364.2583745", "94.28749983", "0", "19.5", "3")
+Call CreateVia("Via10", "-387.2583745", "94.28749983", "0", "19.5", "3")
+
+'Additional vias from coordinate data
+Call CreateVia("Via11", "-207.0441138", "-67.40474047", "0", "19.5", "3")
+Call CreateVia("Via12", "-213.0441138", "-67.40474047", "0", "19.5", "3")
+Call CreateVia("Via13", "-236.0441138", "-67.40474047", "0", "19.5", "3")
+Call CreateVia("Via14", "-253.0441138", "-67.40474047", "0", "19.5", "3")
+Call CreateVia("Via15", "-276.0441138", "-67.40474047", "0", "19.5", "3")
+Call CreateVia("Via16", "-298.3075698", "-51.14128445", "0", "19.5", "3")
+Call CreateVia("Via17", "-298.3075698", "-28.14128445", "0", "19.5", "3")
+Call CreateVia("Via18", "-292.3075698", "-5.141284498", "0", "19.5", "3")
+Call CreateVia("Via19", "-292.3075698", "17.8587155", "0", "19.5", "3")
+Call CreateVia("Via20", "-292.3075698", "40.8587155", "0", "19.5", "3")
+Call CreateVia("Via21", "-292.3075698", "63.8587155", "0", "19.5", "3")
+Call CreateVia("Via22", "-318.2583745", "147.7874998", "0", "19.5", "3")
+Call CreateVia("Via23", "-341.2583745", "147.7874998", "0", "19.5", "3")
+Call CreateVia("Via24", "-364.2583745", "147.7874998", "0", "19.5", "3")
+Call CreateVia("Via25", "-387.2583745", "147.7874998", "0", "19.5", "3")
+Call CreateVia("Via26", "-213.1933605", "-16.4678014", "0", "19.5", "3")
+Call CreateVia("Via27", "-213.1933605", "39.4678014", "0", "19.5", "3")
+Call CreateVia("Via28", "-213.1933605", "62.4678014", "0", "19.5", "3")
+Call CreateVia("Via29", "-213.1933605", "85.4678014", "0", "19.5", "3")
+
+'***************************************************************************
+' Create Coupling Poles (4 poles through middle layer)
+'***************************************************************************
+
+'Coupling poles from vertex data
+Call CreateVia("CouplingPole1", "-189.6973106", "98.11330402", "11.6", "17.9", "3")
+Call CreateVia("CouplingPole2", "-193.6343184", "98.11330402", "11.6", "17.9", "3")
+Call CreateVia("CouplingPole3", "-193.6343184", "-10.84952449", "11.6", "17.9", "3")
+Call CreateVia("CouplingPole4", "-189.6973106", "-41.81409142", "11.6", "17.9", "3")
+
+'***************************************************************************
+' Create Ports
+'***************************************************************************
+
+'Port 1 - Input port at stripline
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", "-405mil", _
+    "YStart:=", "-125mil", _
+    "ZStart:=", "10mil", _
+    "Width:=", "10mil", _
+    "Height:=", "10mil", _
+    "WhichAxis:=", "X"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Port1", _
+    "Flags:=", "", _
+    "Color:=", "(0 0 255)", _
+    "Transparency:=", 0.8, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "vacuum" & Chr(34), _
+    "SolveInside:=", true)
+
+'Port 2 - Output port
+oEditor.CreateRectangle Array("NAME:RectangleParameters", _
+    "IsCovered:=", true, _
+    "XStart:=", "395mil", _
+    "YStart:=", "115mil", _
+    "ZStart:=", "10mil", _
+    "Width:=", "10mil", _
+    "Height:=", "10mil", _
+    "WhichAxis:=", "X"), _
+    Array("NAME:Attributes", _
+    "Name:=", "Port2", _
+    "Flags:=", "", _
+    "Color:=", "(0 0 255)", _
+    "Transparency:=", 0.8, _
+    "PartCoordinateSystem:=", "Global", _
+    "MaterialValue:=", Chr(34) & "vacuum" & Chr(34), _
+    "SolveInside:=", true)
+
+'Assign wave ports
+Set oModule = oDesign.GetModule("BoundarySetup")
+
+oModule.AssignWavePort Array("NAME:Port1", _
+    "Objects:=", Array("Port1"), _
+    "NumModes:=", 1, _
+    "RenormalizeAllTerminals:=", true, _
+    "UseLineModeAlignment:=", false, _
+    "DoDeembed:=", false, _
+    Array("NAME:Modes", _
+        Array("NAME:Mode1", _
+            "ModeNum:=", 1, _
+            "UseIntLine:=", true, _
+            Array("NAME:IntLine", _
+                "Start:=", Array("-400mil", "-120mil", "12.25mil"), _
+                "End:=", Array("-400mil", "-120mil", "11.6mil")), _
+            "CharImp:=", "Zpi")), _
+    "ShowReporterFilter:=", false, _
+    "ReporterFilter:=", Array(true), _
+    "UseAnalyticAlignment:=", false)
+
+oModule.AssignWavePort Array("NAME:Port2", _
+    "Objects:=", Array("Port2"), _
+    "NumModes:=", 1, _
+    "RenormalizeAllTerminals:=", true, _
+    "UseLineModeAlignment:=", false, _
+    "DoDeembed:=", false, _
+    Array("NAME:Modes", _
+        Array("NAME:Mode1", _
+            "ModeNum:=", 1, _
+            "UseIntLine:=", true, _
+            Array("NAME:IntLine", _
+                "Start:=", Array("400mil", "120mil", "12.25mil"), _
+                "End:=", Array("400mil", "120mil", "11.6mil")), _
+            "CharImp:=", "Zpi")), _
+    "ShowReporterFilter:=", false, _
+    "ReporterFilter:=", Array(true), _
+    "UseAnalyticAlignment:=", false)
+
+'***************************************************************************
+' Create Solution Setup
+'***************************************************************************
+
+Set oModule = oDesign.GetModule("AnalysisSetup")
+
+'Frequency settings
+Dim center_freq, start_freq, stop_freq
+center_freq = 15    'GHz (adjust based on your design)
+start_freq = 10     'GHz
+stop_freq = 20      'GHz
+
+'Create adaptive solution
+oModule.InsertSetup "HfssDriven", Array("NAME:Setup1", _
+    "Frequency:=", center_freq & "GHz", _
+    "MaxDeltaS:=", 0.02, _
+    "MaximumPasses:=", 25, _
+    "MinimumPasses:=", 2, _
+    "MinimumConvergedPasses:=", 1, _
+    "PercentRefinement:=", 30, _
+    "IsEnabled:=", true, _
+    "BasisOrder:=", 1, _
+    "DoLambdaRefine:=", true, _
+    "DoMaterialLambda:=", true, _
+    "SetLambdaTarget:=", false, _
+    "Target:=", 0.3333, _
+    "UseMaxTetIncrease:=", false, _
+    "PortAccuracy:=", 2, _
+    "UseABCOnPort:=", false, _
+    "SetPortMinMaxTri:=", false, _
+    "UseDomains:=", false, _
+    "UseIterativeSolver:=", false, _
+    "SaveRadFieldsOnly:=", false, _
+    "SaveAnyFields:=", true, _
+    "IESolverType:=", "Auto", _
+    "LambdaTargetForIESolver:=", 0.15, _
+    "UseDefaultLambdaTgtForIESolver:=", true)
+
+'Add frequency sweep
+oModule.InsertFrequencySweep "Setup1", Array("NAME:Sweep", _
+    "IsEnabled:=", true, _
+    "RangeType:=", "LinearCount", _
+    "RangeStart:=", start_freq & "GHz", _
+    "RangeEnd:=", stop_freq & "GHz", _
+    "RangeCount:=", 1001, _
+    "Type:=", "Interpolating", _
+    "SaveFields:=", false, _
+    "SaveRadFields:=", false, _
+    "InterpTolerance:=", 0.5, _
+    "InterpMaxSolns:=", 250, _
+    "InterpMinSolns:=", 0, _
+    "InterpMinSubranges:=", 1, _
+    "ExtrapToDC:=", false, _
+    "InterpUseS:=", true, _
+    "InterpUsePortImped:=", false, _
+    "InterpUsePropConst:=", true, _
+    "UseDerivativeConvergence:=", false, _
+    "InterpDerivTolerance:=", 0.2, _
+    "UseFullBasis:=", true, _
+    "EnforcePassivity:=", true, _
+    "PassivityErrorTolerance:=", 0.0001)
+
+'***************************************************************************
+' Create Reports
+'***************************************************************************
+
+Set oModule = oDesign.GetModule("ReportSetup")
+
+'Create S-parameter magnitude plot
+oModule.CreateReport "S Parameters Plot", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("dB(S(1,1))", "dB(S(2,1))")), _
+    Array()
+
+'Create insertion loss and return loss plot
+oModule.CreateReport "Insertion and Return Loss", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("dB(S(2,1))", "dB(S(1,1))")), _
+    Array()
+
+'Create phase plot
+oModule.CreateReport "S21 Phase", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("ang_deg(S(2,1))")), _
+    Array()
+
+'Create group delay plot
+oModule.CreateReport "Group Delay", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("GroupDelay(S(2,1))")), _
+    Array()
+
+'Create VSWR plot
+oModule.CreateReport "VSWR", "Modal Solution Data", "Rectangular Plot", _
+    "Setup1 : Sweep", Array("Domain:=", "Sweep"), _
+    Array("Freq:=", Array("All")), _
+    Array("X Component:=", "Freq", "Y Component:=", Array("VSWR(1)", "VSWR(2)")), _
+    Array()
+
+
+'***************************************************************************
+' Final Assembly and Validation
+'***************************************************************************
+
+'Unite all layers into single substrate
+oEditor.Unite Array("NAME:Selections", _
+    "Selections:=", "Layer1_Rogers,Layer2_Prepreg,Layer3_Rogers,Layer4_Prepreg,Layer5_Rogers"), _
+    Array("NAME:UniteParameters", "KeepOriginals:=", false)
+
+'Rename united object
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "Layer1_Rogers"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "Complete_Substrate"))))
+
+'Unite all vias
+Dim via_list
+via_list = "Via1"
+For i = 2 To 29
+    via_list = via_list & ",Via" & i
+Next
+
+oEditor.Unite Array("NAME:Selections", _
+    "Selections:=", via_list), _
+    Array("NAME:UniteParameters", "KeepOriginals:=", false)
+
+'Rename united vias
+oEditor.ChangeProperty Array("NAME:AllTabs", _
+    Array("NAME:Geometry3DAttributeTab", _
+        Array("NAME:PropServers", "Via1"), _
+        Array("NAME:ChangedProps", _
+            Array("NAME:Name", "Value:=", "All_Vias"))))
+
+'Validate the design
+oDesign.Validate
+
+'Save project
+oProject.Save
+
+'***************************************************************************
+' Display Completion Message
+'***************************************************************************
+
+MsgBox "Multi-layer stripline filter has been created successfully!" & vbCrLf & _
+       vbCrLf & _
+       "Design Details:" & vbCrLf & _
+       "- Board outline created from exact vertex data" & vbCrLf & _
+       "- 5-layer stackup with Rogers 3010 and 2929 prepreg" & vbCrLf & _
+       "- 8 resonators positioned on layers 2 and 4" & vbCrLf & _
+       "- Stripline feed structure with lossy copper" & vbCrLf & _
+       "- 29 grounding vias" & vbCrLf & _
+       "- 4 coupling poles" & vbCrLf & _
+       "- 2 wave ports configured" & vbCrLf & _
+       vbCrLf & _
+       "Simulation Settings:" & vbCrLf & _
+       "- Center frequency: " & center_freq & " GHz" & vbCrLf & _
+       "- Frequency range: " & start_freq & " - " & stop_freq & " GHz" & vbCrLf & _
+       "- 1001 frequency points" & vbCrLf & _
+       vbCrLf & _
+       "Please review the design and adjust parameters as needed."
+
+'***************************************************************************
+' END OF SCRIPT
+'***************************************************************************
