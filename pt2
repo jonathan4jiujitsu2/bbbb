@@ -1,0 +1,126 @@
+’***************************************************************************
+’ HFSS VBScript for Complete Multi-Layer Stripline Filter - PART 2 OF 8
+’ Layer Stack Creation
+’***************************************************************************
+
+’***************************************************************************
+’ Create 5-Layer Stack
+’***************************************************************************
+
+’Convert board outline to 3D with proper thickness
+oEditor.SweepAlongVector Array(“NAME:Selections”, _
+“Selections:=”, “BoardOutline”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:VectorSweepParameters”, _
+“DraftAngle:=”, “0deg”, _
+“DraftType:=”, “Round”, _
+“CheckFaceFaceIntersection:=”, false, _
+“SweepVectorX:=”, “0”, _
+“SweepVectorY:=”, “0”, _
+“SweepVectorZ:=”, “-10mil”)
+
+’Rename to Layer5 (Top Rogers)
+oEditor.ChangeProperty Array(“NAME:AllTabs”, _
+Array(“NAME:Geometry3DAttributeTab”, _
+Array(“NAME:PropServers”, “BoardOutline”), _
+Array(“NAME:ChangedProps”, _
+Array(“NAME:Name”, “Value:=”, “Layer5_Rogers”))))
+
+’Create Layer 4 - Prepreg 2929 (2.25 mil)
+oEditor.Copy Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers”)
+oEditor.Paste
+oEditor.Move Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers1”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:TranslateParameters”, _
+“TranslateVectorX:=”, “0”, _
+“TranslateVectorY:=”, “0”, _
+“TranslateVectorZ:=”, “-10mil”)
+oEditor.Scale Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers1”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:ScaleParameters”, _
+“ScaleX:=”, “1”, _
+“ScaleY:=”, “1”, _
+“ScaleZ:=”, “0.225”)
+oEditor.ChangeProperty Array(“NAME:AllTabs”, _
+Array(“NAME:Geometry3DAttributeTab”, _
+Array(“NAME:PropServers”, “Layer5_Rogers1”), _
+Array(“NAME:ChangedProps”, _
+Array(“NAME:Name”, “Value:=”, “Layer4_Prepreg”), _
+Array(“NAME:Material”, “Value:=”, Chr(34) & “Prepreg2929” & Chr(34)))))
+
+’Create Layer 3 - Middle Rogers 3010 (5 mil)
+oEditor.Copy Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers”)
+oEditor.Paste
+oEditor.Move Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers1”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:TranslateParameters”, _
+“TranslateVectorX:=”, “0”, _
+“TranslateVectorY:=”, “0”, _
+“TranslateVectorZ:=”, “-12.25mil”)
+oEditor.Scale Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers1”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:ScaleParameters”, _
+“ScaleX:=”, “1”, _
+“ScaleY:=”, “1”, _
+“ScaleZ:=”, “0.5”)
+oEditor.ChangeProperty Array(“NAME:AllTabs”, _
+Array(“NAME:Geometry3DAttributeTab”, _
+Array(“NAME:PropServers”, “Layer5_Rogers1”), _
+Array(“NAME:ChangedProps”, _
+Array(“NAME:Name”, “Value:=”, “Layer3_Rogers”))))
+
+’Create Layer 2 - Prepreg 2929 (2.25 mil)
+oEditor.Copy Array(“NAME:Selections”, “Selections:=”, “Layer4_Prepreg”)
+oEditor.Paste
+oEditor.Move Array(“NAME:Selections”, “Selections:=”, “Layer4_Prepreg1”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:TranslateParameters”, _
+“TranslateVectorX:=”, “0”, _
+“TranslateVectorY:=”, “0”, _
+“TranslateVectorZ:=”, “-7.25mil”)
+oEditor.ChangeProperty Array(“NAME:AllTabs”, _
+Array(“NAME:Geometry3DAttributeTab”, _
+Array(“NAME:PropServers”, “Layer4_Prepreg1”), _
+Array(“NAME:ChangedProps”, _
+Array(“NAME:Name”, “Value:=”, “Layer2_Prepreg”))))
+
+’Create Layer 1 - Bottom Rogers 3010 (10 mil)
+oEditor.Copy Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers”)
+oEditor.Paste
+oEditor.Move Array(“NAME:Selections”, “Selections:=”, “Layer5_Rogers1”, _
+“NewPartsModelFlag:=”, “Model”), _
+Array(“NAME:TranslateParameters”, _
+“TranslateVectorX:=”, “0”, _
+“TranslateVectorY:=”, “0”, _
+“TranslateVectorZ:=”, “-19.5mil”)
+oEditor.ChangeProperty Array(“NAME:AllTabs”, _
+Array(“NAME:Geometry3DAttributeTab”, _
+Array(“NAME:PropServers”, “Layer5_Rogers1”), _
+Array(“NAME:ChangedProps”, _
+Array(“NAME:Name”, “Value:=”, “Layer1_Rogers”))))
+
+’***************************************************************************
+’ Layer Stack Summary
+’***************************************************************************
+’ Layer 5: Rogers 3010 (10 mil thick) - Z: 9.5 to 19.5 mil
+’ Layer 4: Prepreg 2929 (2.25 mil thick) - Z: 7.75 to 9.5 mil  
+’ Layer 3: Rogers 3010 (5 mil thick) - Z: 2.5 to 7.5 mil
+’ Layer 2: Prepreg 2929 (2.25 mil thick) - Z: 0.25 to 2.5 mil
+’ Layer 1: Rogers 3010 (10 mil thick) - Z: 0 to 10 mil
+’***************************************************************************
+
+’***************************************************************************
+’ STATUS MESSAGE
+’***************************************************************************
+
+MsgBox “Part 2 of 8 Complete!” & vbCrLf & _
+“5-Layer PCB Stack Created:” & vbCrLf & _
+“- Layer 1: Bottom Rogers 3010 (10 mil)” & vbCrLf & _
+“- Layer 2: Prepreg 2929 (2.25 mil)” & vbCrLf & _
+“- Layer 3: Middle Rogers 3010 (5 mil)” & vbCrLf & _
+“- Layer 4: Prepreg 2929 (2.25 mil)” & vbCrLf & _
+“- Layer 5: Top Rogers 3010 (10 mil)” & vbCrLf & _
+vbCrLf & _
+“Continue with Part 3 to add helper functions.”
+
+’END OF PART 2 - Continue with Part 3 for Helper Functions
